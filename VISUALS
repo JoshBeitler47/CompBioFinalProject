@@ -1,0 +1,194 @@
+"""
+compare_and_visualize.py
+------------------------
+Trains three MNIST models that share the SAME 784 -> 400 -> 10 architecture and
+differ ONLY in how the hidden layer learns, then makes the figures for your website.
+
+  A. Backprop (end-to-end)  -- hidden layer trained by backprop            [upper reference]
+  B. Hebbian + readout      -- hidden layer trained by a local Hebbian rule, readout by backprop
+  C. Random + readout       -- hidden layer FROZEN at random, readout by backprop   [control]
+
+Why the random control? It tells you whether the Hebbian rule actually learned
+anything. If B clearly beats C, the local rule discovered real structure in the
+digits with NO labels and NO backprop -- that's the interesting result, not just
+"backprop wins."
+
+Outputs (PNG files in this folder), ready to drop onto your site:
+  1. accuracy_comparison.png -- the headline bar chart
+  2. confusion_matrices.png  -- where each model gets confused (diagonal removed)
+  3. misclassified.png       -- example digits each model gets wrong
+  4. filters.png             -- what each hidden layer "looks for" (the compelling one)
+
+Requires: torch, torchvision, matplotlib   (pip install matplotlib if you don't have it)
+Runtime: about 1-2 minutes on CPU. Lower the epoch numbers while you're iterating.
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+import matplotlib.pyplot as plt
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.manual_seed(0)
+WIDTH = 400          # shared hidden-layer width -- IDENTICAL for all three models,
+                     # so size is not a hidden variable in the comparison.
+
+# ---------------------------------------------------------------------------
+# Data. All models see the SAME unit-normalized 784-vectors. We also keep the raw
+# [0,1] pixels purely for DISPLAYING digits later.
+# ---------------------------------------------------------------------------
+train_set = torchvision.datasets.MNIST(root="./data", train=True,  download=True)
+test_set  = torchvision.datasets.MNIST(root="./data", train=False, download=True)
+
+def prep(ds):
+    raw = ds.data.float() / 255.0                  # [n, 28, 28] pixels in [0,1] (display)
+    X = F.normalize(raw.view(len(ds), -1), dim=1)  # [n, 784] unit length (fed to models)
+    return X.to(device), ds.targets.clone().to(device), raw
+
+X_train, y_train, _        = prep(train_set)
+X_test,  y_test,  raw_test = prep(test_set)
+y_test_cpu = y_test.cpu()
+
+# ===========================================================================
+# Model A: backprop, end-to-end
+# ===========================================================================
+def train_backprop(epochs=8):
+    net = nn.Sequential(nn.Linear(784, WIDTH), nn.ReLU(), nn.Linear(WIDTH, 10)).to(device)
+    opt, lossf = torch.optim.Adam(net.parameters(), lr=1e-3), nn.CrossEntropyLoss()
+    for _ in range(epochs):
+        perm = torch.randperm(X_train.size(0), device=device)
+        for i in range(0, X_train.size(0), 128):
+            idx = perm[i:i+128]
+            opt.zero_grad()
+            lossf(net(X_train[idx]), y_train[idx]).backward()
+            opt.step()
+    return net
+
+# ===========================================================================
+# Hidden layers for B and C, plus a shared readout trainer
+# ===========================================================================
+def hebbian_W1(epochs=3, lr=0.05):
+    W = F.normalize(X_train[torch.randint(0, X_train.size(0), (WIDTH,))].clone(), dim=1)
+    for _ in range(epochs):
+        perm = torch.randperm(X_train.size(0), device=device)
+        for i in range(0, X_train.size(0), 256):
+            x = X_train[perm[i:i+256]]
+            winners = (x @ W.t()).argmax(1)                # competition: best match wins
+            sum_x = torch.zeros_like(W)
+            counts = torch.zeros(WIDTH, device=device)
+            sum_x.index_add_(0, winners, x)
+            counts.index_add_(0, winners, torch.ones_like(winners, dtype=torch.float))
+            won = counts > 0
+            # winner moves toward inputs it won (Hebbian), then renormalize (Oja-style)
+            W[won] = F.normalize(W[won] + lr * (sum_x[won] / counts[won].unsqueeze(1) - W[won]), dim=1)
+    return W
+
+def random_W1():
+    return F.normalize(torch.randn(WIDTH, 784, device=device), dim=1)
+
+def train_readout(W1, epochs=100):
+    Htr = F.relu(X_train @ W1.t())
+    ro, lossf = nn.Linear(WIDTH, 10).to(device), nn.CrossEntropyLoss()
+    opt = torch.optim.Adam(ro.parameters(), lr=0.01)
+    for _ in range(epochs):
+        opt.zero_grad()
+        lossf(ro(Htr), y_train).backward()
+        opt.step()
+    return ro
+
+# ===========================================================================
+# Run all three and collect: test predictions + hidden weights (for filter viz)
+# ===========================================================================
+print("Training A: backprop end-to-end...")
+net = train_backprop()
+with torch.no_grad():
+    predsA = net(X_test).argmax(1).cpu()
+
+print("Training B: Hebbian hidden layer + readout...")
+Wh = hebbian_W1(); roB = train_readout(Wh)
+with torch.no_grad():
+    predsB = roB(F.relu(X_test @ Wh.t())).argmax(1).cpu()
+
+print("Training C: random hidden layer + readout...")
+Wr = random_W1(); roC = train_readout(Wr)
+with torch.no_grad():
+    predsC = roC(F.relu(X_test @ Wr.t())).argmax(1).cpu()
+
+results = {
+    "Backprop\n(end-to-end)": dict(preds=predsA, W1=net[0].weight.detach().cpu()),
+    "Hebbian\n+ readout":     dict(preds=predsB, W1=Wh.cpu()),
+    "Random\n+ readout":      dict(preds=predsC, W1=Wr.cpu()),
+}
+for name, r in results.items():
+    r["acc"] = (r["preds"] == y_test_cpu).float().mean().item() * 100
+    print(f"  {name.replace(chr(10),' ')}: {r['acc']:.2f}%")
+
+names = list(results.keys())
+
+# ===========================================================================
+# Figure 1: accuracy bar chart
+# ===========================================================================
+plt.figure(figsize=(6, 4))
+accs = [results[n]["acc"] for n in names]
+bars = plt.bar(names, accs, color=["#4C72B0", "#55A868", "#C44E52"])
+for b, a in zip(bars, accs):
+    plt.text(b.get_x() + b.get_width()/2, a + 0.4, f"{a:.1f}%", ha="center", fontweight="bold")
+plt.ylabel("Test accuracy (%)"); plt.ylim(0, 100)
+plt.title("MNIST: does it matter HOW the hidden layer learns?")
+plt.tight_layout(); plt.savefig("accuracy_comparison.png", dpi=150); plt.close()
+
+# ===========================================================================
+# Figure 2: confusion matrices (diagonal removed so ERRORS are visible)
+# ===========================================================================
+def error_matrix(preds):
+    cm = torch.bincount((y_test_cpu * 10 + preds), minlength=100).reshape(10, 10).float()
+    cm.fill_diagonal_(0)          # zero the correct predictions -> only confusions remain
+    return cm
+
+err = {n: error_matrix(results[n]["preds"]) for n in names}
+vmax = max(m.max().item() for m in err.values())    # shared scale for fair comparison
+fig, axes = plt.subplots(1, 3, figsize=(15, 4.6))
+for ax, n in zip(axes, names):
+    im = ax.imshow(err[n], cmap="Reds", vmin=0, vmax=vmax)
+    ax.set_title(f"{n}  ({results[n]['acc']:.1f}%)")
+    ax.set_xlabel("Predicted digit"); ax.set_ylabel("True digit")
+    ax.set_xticks(range(10)); ax.set_yticks(range(10))
+fig.colorbar(im, ax=axes, shrink=0.8, label="# of mistakes")
+plt.savefig("confusion_matrices.png", dpi=150, bbox_inches="tight"); plt.close()
+
+# ===========================================================================
+# Figure 3: example misclassified digits (true -> predicted)
+# ===========================================================================
+N = 8
+fig, axes = plt.subplots(3, N, figsize=(N * 1.15, 4.2))
+for row, n in enumerate(names):
+    preds = results[n]["preds"]
+    wrong = (preds != y_test_cpu).nonzero(as_tuple=True)[0][:N]
+    for col in range(N):
+        ax = axes[row, col]; ax.set_xticks([]); ax.set_yticks([])
+        if col < len(wrong):
+            wi = wrong[col].item()
+            ax.imshow(raw_test[wi], cmap="gray")
+            ax.set_title(f"{y_test_cpu[wi].item()}\u2192{preds[wi].item()}", fontsize=9)
+    axes[row, 0].set_ylabel(n.replace("\n", " "), fontsize=10)
+plt.suptitle("Digits each model gets wrong  (true \u2192 predicted)")
+plt.tight_layout(); plt.savefig("misclassified.png", dpi=150); plt.close()
+
+# ===========================================================================
+# Figure 4: what each hidden unit "looks for" (weight patterns as 28x28 images)
+# ===========================================================================
+M = 10
+fig, axes = plt.subplots(3, M, figsize=(M * 1.1, 3.8))
+for row, n in enumerate(names):
+    W = results[n]["W1"]
+    for col in range(M):
+        f = W[col].view(28, 28)
+        v = f.abs().max()
+        ax = axes[row, col]; ax.set_xticks([]); ax.set_yticks([])
+        ax.imshow(f, cmap="seismic", vmin=-v, vmax=v)
+    axes[row, 0].set_ylabel(n.replace("\n", " "), fontsize=10)
+plt.suptitle("What each hidden unit 'looks for' (its weight pattern)")
+plt.tight_layout(); plt.savefig("filters.png", dpi=150); plt.close()
+
+print("\nSaved: accuracy_comparison.png, confusion_matrices.png, misclassified.png, filters.png")
