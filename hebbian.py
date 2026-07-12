@@ -1,0 +1,138 @@
+"""
+MNIST Hebbian model -- competitive Hebbian feature learning + supervised linear readout.
+
+This is the "biologically-inspired learning" side of your comparison. It is meant to
+sit next to mnist_backprop_baseline.py, and the contrast between the two files is the
+whole point of the project:
+
+  * Backprop baseline: every weight is updated by loss.backward() -- ONE global error
+    signal pushed backward through the whole network.
+  * Hebbian model (this file): the hidden layer learns LOCALLY and WITHOUT LABELS.
+    Each hidden unit updates using only its own activation and the input it sees
+    ("cells that fire together wire together") -- there is no backward pass at all.
+
+Because a purely Hebbian rule never sees the labels, it cannot classify on its own.
+So we use the standard bridge: let the Hebbian layer discover features unsupervised,
+then train ONE small supervised linear layer (the "readout") on top of those features
+with backprop. This mirrors the recipe in the pytorch-hebbian paper your instructor
+pointed you to (Hebbian features + a supervised output layer) -- just with a simpler,
+easier-to-explain local rule.
+
+Expect this to score a bit BELOW the backprop baseline. That gap is the result you're
+after: backprop usually wins on accuracy, but its learning rule is far less
+biologically plausible than a local Hebbian one.
+
+Needs the same working install as the baseline: torch + torchvision.
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
+
+# ---------------------------------------------------------------------------
+# 1. Data. Flatten each image to a 784-vector and normalize it to unit length.
+#    Normalizing matters for Hebbian learning: it makes a unit's response a clean
+#    measure of how well its weights MATCH the input pattern (a cosine similarity).
+# ---------------------------------------------------------------------------
+train_set = torchvision.datasets.MNIST(root="./data", train=True,  download=True)
+test_set  = torchvision.datasets.MNIST(root="./data", train=False, download=True)
+
+def to_matrix(dataset):
+    X = dataset.data.float().view(len(dataset), -1) / 255.0  # [n, 784], pixels in [0,1]
+    X = F.normalize(X, dim=1)                                # each image -> unit length
+    y = dataset.targets.clone()                              # [n]
+    return X.to(device), y.to(device)
+
+X_train, y_train = to_matrix(train_set)
+X_test,  y_test  = to_matrix(test_set)
+
+# ---------------------------------------------------------------------------
+# 2. The Hebbian hidden layer (competitive learning).
+#    W1 has one row per hidden unit; each row is a "template" the unit detects.
+#    We learn these templates with a LOCAL, UNSUPERVISED rule:
+#
+#      - Show an input x.
+#      - Each unit reports how well it matches:  a = W1 @ x.
+#      - The best-matching unit WINS (a form of lateral inhibition / competition).
+#      - The winner nudges its weights TOWARD x (Hebbian: strengthen what fired
+#        together), then we renormalize its weights to unit length -- the
+#        stabilizing idea from Oja's rule, so weights can't blow up.
+#
+#    No labels, no loss, no .backward() anywhere in this section.
+# ---------------------------------------------------------------------------
+HIDDEN = 400          # number of hidden units / templates
+HEBB_EPOCHS = 3
+HEBB_LR = 0.05
+
+torch.manual_seed(0)
+# Initialize each template from a random training image -> avoids "dead" units
+# that never win and never learn.
+init_idx = torch.randint(0, X_train.size(0), (HIDDEN,))
+W1 = F.normalize(X_train[init_idx].clone(), dim=1)   # [HIDDEN, 784]
+
+print("\nTraining Hebbian hidden layer (unsupervised, no labels)...")
+batch = 256
+for epoch in range(1, HEBB_EPOCHS + 1):
+    perm = torch.randperm(X_train.size(0), device=device)
+    active = 0
+    for i in range(0, X_train.size(0), batch):
+        x = X_train[perm[i:i + batch]]           # [B, 784]
+        a = x @ W1.t()                           # [B, HIDDEN] match scores
+        winners = a.argmax(dim=1)                # [B] winning unit per input
+
+        # For each unit, sum the inputs it won and count how many it won.
+        sum_x = torch.zeros_like(W1)             # [HIDDEN, 784]
+        counts = torch.zeros(HIDDEN, device=device)
+        sum_x.index_add_(0, winners, x)
+        counts.index_add_(0, winners, torch.ones_like(winners, dtype=torch.float))
+
+        # Move each winning unit toward the AVERAGE input it won (the Hebbian step),
+        # then renormalize (the Oja-style stabilization).
+        won = counts > 0
+        mean_x = sum_x[won] / counts[won].unsqueeze(1)
+        W1[won] = W1[won] + HEBB_LR * (mean_x - W1[won])
+        W1 = F.normalize(W1, dim=1)
+        active = int(won.sum())
+    print(f"  Hebbian epoch {epoch}/{HEBB_EPOCHS} done "
+          f"({active}/{HIDDEN} units active in the last batch)")
+
+# ---------------------------------------------------------------------------
+# 3. The supervised readout (the "bridge").
+#    Freeze the Hebbian features and train ONE linear layer on top with ordinary
+#    backprop. This is the ONLY place labels or gradients appear in this file.
+# ---------------------------------------------------------------------------
+def features(X):
+    return F.relu(X @ W1.t())                    # [n, HIDDEN] hidden activations
+
+H_train = features(X_train)                      # precomputed; W1 is frozen from here
+H_test  = features(X_test)
+
+readout = nn.Linear(HIDDEN, 10).to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(readout.parameters(), lr=0.01)
+
+print("\nTraining supervised linear readout on the frozen Hebbian features...")
+READOUT_EPOCHS = 100
+for epoch in range(1, READOUT_EPOCHS + 1):
+    optimizer.zero_grad()
+    loss = criterion(readout(H_train), y_train)
+    loss.backward()                              # backprop -- but only for the readout
+    optimizer.step()
+    if epoch == 1 or epoch % 25 == 0:
+        train_acc = (readout(H_train).argmax(1) == y_train).float().mean().item() * 100
+        print(f"  readout epoch {epoch}: loss={loss.item():.3f}  train_acc={train_acc:.2f}%")
+
+# ---------------------------------------------------------------------------
+# 4. Final test accuracy -- compare this against your backprop baseline.
+# ---------------------------------------------------------------------------
+with torch.no_grad():
+    test_acc = (readout(H_test).argmax(1) == y_test).float().mean().item() * 100
+
+print(f"\nHebbian model test accuracy: {test_acc:.2f}%")
+print("Compare this to your backprop baseline (~97%). The gap IS the result:")
+print("backprop usually wins on accuracy, but its learning rule is far less")
+print("biologically plausible than this local, label-free Hebbian one.")
