@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../static/style.css">
+<link rel="stylesheet" href="static/style.css">
 </head>
 <body>
 
@@ -74,7 +74,7 @@
 <section id="accuracy">
   <h2>Test Accuracy</h2>
   <figure>
-    <img src="../output/accuracy_comparison.png" alt="Accuracy comparison bar chart">
+    <img src="output/accuracy_comparison.png" alt="Accuracy comparison bar chart">
     <figcaption>Mean test accuracy &plusmn; 1 standard deviation across 3 random seeds. Backprop leads, but Hebbian features outperform a random projection, confirming that local learning discovered real structure.</figcaption>
   </figure>
 </section>
@@ -82,7 +82,7 @@
 <section id="sample-efficiency">
   <h2>Sample Efficiency</h2>
   <figure>
-    <img src="../output/sample_efficiency.png" alt="Sample efficiency plot">
+    <img src="output/sample_efficiency.png" alt="Sample efficiency plot">
     <figcaption>Accuracy as a function of the fraction of labeled training data used. The Hebbian hidden layer always trains on the full <em>unlabeled</em> set &mdash; only the supervised readout is label-starved. This highlights a key advantage of unsupervised pre-training.</figcaption>
   </figure>
 </section>
@@ -90,7 +90,7 @@
 <section id="training-curves">
   <h2>Training Curves</h2>
   <figure>
-    <img src="../output/training_curves.png" alt="Training curves">
+    <img src="output/training_curves.png" alt="Training curves">
     <figcaption>Test accuracy over training epochs. Backprop converges rapidly, while the Hebbian readout improves more gradually over its longer training schedule.</figcaption>
   </figure>
 </section>
@@ -98,7 +98,7 @@
 <section id="catastrophic-forgetting">
   <h2>Catastrophic Forgetting</h2>
   <figure>
-    <img src="../output/catastrophic_forgetting.png" alt="Catastrophic forgetting bar chart">
+    <img src="output/catastrophic_forgetting.png" alt="Catastrophic forgetting bar chart">
     <figcaption>Test accuracy on Task A (digits 0&ndash;4) before and after training on Task B (digits 5&ndash;9). A larger drop indicates more forgetting. Linear probes measure how much Task A information is still recoverable from each model's hidden representation after Task B.</figcaption>
   </figure>
 </section>
@@ -106,7 +106,7 @@
 <section id="seed-variability">
   <h2>Across-Seed Variability</h2>
   <figure>
-    <img src="../output/seed_variability.png" alt="Seed variability scatter plot">
+    <img src="output/seed_variability.png" alt="Seed variability scatter plot">
     <figcaption>Each faint dot is one of 5 independent runs. The diamond marks the mean &plusmn; 1 std. The spread across seeds is more informative than any single run, and the tuned Hebbian variant closes part of the gap with backprop.</figcaption>
   </figure>
 </section>
@@ -114,7 +114,7 @@
 <section id="fashion-mnist">
   <h2>Fashion-MNIST</h2>
   <figure>
-    <img src="../output/fashion_seed_variability.png" alt="Fashion-MNIST variability">
+    <img src="output/fashion_seed_variability.png" alt="Fashion-MNIST variability">
     <figcaption>The same 4-condition comparison on Fashion-MNIST, a harder 10-class task. With more separable classes, the tuned Hebbian model pulls clearly ahead of the random baseline.</figcaption>
   </figure>
 </section>
@@ -122,7 +122,7 @@
 <section id="confusion">
   <h2>Confusion Matrices</h2>
   <figure>
-    <img src="../output/confusion_matrices.png" alt="Confusion matrices">
+    <img src="output/confusion_matrices.png" alt="Confusion matrices">
     <figcaption>Error matrices (diagonal removed) for a representative run. Darker cells mark digit pairs the model frequently confuses. Backprop's matrix is sparsest, reflecting its higher accuracy.</figcaption>
   </figure>
 </section>
@@ -130,7 +130,7 @@
 <section id="filters">
   <h2>Hidden Unit Filters</h2>
   <figure>
-    <img src="../output/filters.png" alt="Weight filters">
+    <img src="output/filters.png" alt="Weight filters">
     <figcaption>The first 10 hidden-unit weight patterns reshaped to 28&times;28. Backprop units develop stroke detectors; Hebbian units learn soft digit templates; Random units show no structure.</figcaption>
   </figure>
 </section>
@@ -138,7 +138,7 @@
 <section id="misclassified">
   <h2>Misclassified Examples</h2>
   <figure>
-    <img src="../output/misclassified.png" alt="Misclassified digits">
+    <img src="output/misclassified.png" alt="Misclassified digits">
     <figcaption>Examples each model gets wrong (true digit &rarr; predicted digit). Comparing the error patterns reveals which digit confusions are shared and which are unique to each learning rule.</figcaption>
   </figure>
 </section>
@@ -159,7 +159,7 @@
 </main>
 
 <footer>
-  <p>Built with PyTorch &middot; Figures by Matplotlib &middot; <a href="https://github.com/anomalyco/CompBioFinalProject">GitHub</a></p>
+  <p>Built with PyTorch &middot; Figures by Matplotlib &middot; <a href="https://github.com/JoshBeitler47/CompBioFinalProject">GitHub</a></p>
 </footer>
 
 </body>
