@@ -14,13 +14,18 @@ Random+readout) with three additions:
   3. TRAINING CURVES: backprop and the two readouts now record test accuracy
      across epochs, so we can plot how fast each one converges.
 
+Shared data loading (with mean-centering) and the Backprop/Hebbian/Random
+training routines live in common.py -- see that file's module docstring for
+why the data is centered and why the Hebbian rule here isn't literally Oja's
+rule.
+
 Outputs (PNG files in output/):
    1. output/accuracy_comparison.png     -- bar chart with error bars (multi-seed)
    2. output/confusion_matrices.png      -- unchanged from before, single representative run
    3. output/misclassified.png           -- unchanged from before, single representative run
    4. output/filters.png                 -- unchanged from before, single representative run
-   5. output/sample_efficiency.png       -- NEW: accuracy vs. fraction of labeled data
-   6. output/training_curves.png         -- NEW: accuracy vs. epoch, backprop vs Hebbian readout
+   5. output/sample_efficiency.png       -- accuracy vs. fraction of labeled data
+   6. output/training_curves.png         -- accuracy vs. epoch, backprop vs Hebbian readout
 
 Requires: torch, torchvision, matplotlib
 Runtime: meaningfully longer than v1 -- see SEEDS / EFFICIENCY_FRACTIONS below.
@@ -28,14 +33,18 @@ Turn those numbers down for a quick first pass, then back up for final results.
 """
 
 import os
+import sys
+
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+sys.path.insert(0, os.path.dirname(__file__))
+import common as C
+
+device = C.device
 os.makedirs("output", exist_ok=True)
 print("Using device:", device)
 
@@ -47,20 +56,12 @@ BACKPROP_EPOCHS = 8
 READOUT_EPOCHS = 100
 
 # ---------------------------------------------------------------------------
-# Data. Loaded once. All models see the same unit-normalized 784-vectors.
+# Data. Loaded once. All models see the same mean-centered, unit-normalized
+# 784-vectors (see common.py for why centering matters here).
 # ---------------------------------------------------------------------------
-train_set = torchvision.datasets.MNIST(root="./data", train=True, download=True)
-test_set = torchvision.datasets.MNIST(root="./data", train=False, download=True)
-
-
-def prep(ds):
-    raw = ds.data.float() / 255.0
-    X = F.normalize(raw.view(len(ds), -1), dim=1)
-    return X.to(device), ds.targets.clone().to(device), raw
-
-
-X_train_full, y_train_full, _ = prep(train_set)
-X_test, y_test, raw_test = prep(test_set)
+X_train_full, y_train_full, X_test, y_test, raw_test, _mean = C.load_dataset(
+    torchvision.datasets.MNIST
+)
 y_test_cpu = y_test.cpu()
 N_TRAIN = X_train_full.size(0)
 
@@ -77,109 +78,6 @@ def labeled_subset(fraction, seed):
 
 
 # ===========================================================================
-# Model A: backprop, end-to-end. Now records a per-epoch test-accuracy curve.
-# ===========================================================================
-def train_backprop(X, y, epochs=BACKPROP_EPOCHS, seed=0, track_curve=False):
-    torch.manual_seed(seed)
-    net = nn.Sequential(nn.Linear(784, WIDTH), nn.ReLU(), nn.Linear(WIDTH, 10)).to(
-        device
-    )
-    opt, lossf = torch.optim.Adam(net.parameters(), lr=1e-3), nn.CrossEntropyLoss()
-
-    curve = []
-    for epoch in range(epochs):
-        perm = torch.randperm(X.size(0), device=device)
-        for i in range(0, X.size(0), 128):
-            idx = perm[i : i + 128]
-            opt.zero_grad()
-            lossf(net(X[idx]), y[idx]).backward()
-            opt.step()
-        if track_curve:
-            with torch.no_grad():
-                acc = (
-                    net(X_test).argmax(1).cpu() == y_test_cpu
-                ).float().mean().item() * 100
-            curve.append(acc)
-    return net, curve
-
-
-# ===========================================================================
-# Hebbian hidden layer. ALWAYS trains on the full, unlabeled training set --
-# label_fraction never touches this function, on purpose (see module docstring).
-# ===========================================================================
-def hebbian_W1(epochs=3, lr=0.05, seed=0):
-    torch.manual_seed(seed)
-    W = F.normalize(X_train_full[torch.randint(0, N_TRAIN, (WIDTH,))].clone(), dim=1)
-    for _ in range(epochs):
-        perm = torch.randperm(N_TRAIN, device=device)
-        for i in range(0, N_TRAIN, 256):
-            x = X_train_full[perm[i : i + 256]]
-            winners = (x @ W.t()).argmax(1)
-            sum_x = torch.zeros_like(W)
-            counts = torch.zeros(WIDTH, device=device)
-            sum_x.index_add_(0, winners, x)
-            counts.index_add_(0, winners, torch.ones_like(winners, dtype=torch.float))
-            won = counts > 0
-            W[won] = F.normalize(
-                W[won] + lr * (sum_x[won] / counts[won].unsqueeze(1) - W[won]), dim=1
-            )
-    with torch.no_grad():
-        all_winners = (X_train_full @ W.t()).argmax(dim=1)
-        n_active = all_winners.unique().numel()
-    print(
-        f"  [seed {seed}] {n_active}/{WIDTH} Hebbian units won at least once across full training set"
-    )
-
-    return W
-
-
-def random_W1(seed=0):
-    torch.manual_seed(seed)
-    return F.normalize(torch.randn(WIDTH, 784, device=device), dim=1)
-
-
-def train_readout(W1, X, y, epochs=READOUT_EPOCHS, track_curve=False, curve_every=5):
-    """X, y here are the (possibly label-starved) supervised subset."""
-    Htr = F.relu(X @ W1.t())
-    Hte = F.relu(X_test @ W1.t())
-    ro, lossf = nn.Linear(WIDTH, 10).to(device), nn.CrossEntropyLoss()
-    opt = torch.optim.Adam(ro.parameters(), lr=0.01)
-
-    curve = []
-    for epoch in range(epochs):
-        opt.zero_grad()
-        lossf(ro(Htr), y).backward()
-        opt.step()
-        if track_curve and (epoch % curve_every == 0 or epoch == epochs - 1):
-            with torch.no_grad():
-                acc = (
-                    ro(Hte).argmax(1).cpu() == y_test_cpu
-                ).float().mean().item() * 100
-            curve.append((epoch, acc))
-    return ro, curve
-
-
-def redundancy_check(W, name, seed):
-    """W rows are already unit-length (both hebbian_W1 and random_W1 normalize
-    their rows), so W @ W.T directly gives cosine similarity between every
-    pair of templates."""
-    with torch.no_grad():
-        sim = W @ W.t()
-        n = W.shape[0]
-        off_diag_mask = ~torch.eye(n, dtype=torch.bool, device=W.device)
-        mean_sim = sim[off_diag_mask].mean().item()
-
-        s = torch.linalg.svdvals(W)
-        eff_dim = ((s.sum() ** 2) / (s**2).sum()).item()
-
-    print(
-        f"  [seed {seed}] {name}: mean pairwise similarity={mean_sim:.3f}, "
-        f"effective dimensionality={eff_dim:.1f}/{n}"
-    )
-    return mean_sim, eff_dim
-
-
-# ===========================================================================
 # One full pipeline run: all three models, given a seed and a label fraction.
 # Returns just the three test accuracies (used by both the seed-averaging
 # and the sample-efficiency experiments below).
@@ -187,26 +85,36 @@ def redundancy_check(W, name, seed):
 def run_pipeline(seed, label_fraction, track_curve=False):
     X_sup, y_sup = labeled_subset(label_fraction, seed)
 
-    net, curveA = train_backprop(X_sup, y_sup, seed=seed, track_curve=track_curve)
+    net = C.build_backprop_net(WIDTH, seed=seed)
+    net, curveA = C.train_backprop(
+        net, X_sup, y_sup, epochs=BACKPROP_EPOCHS,
+        track_curve=track_curve, X_test=X_test, y_test=y_test,
+    )
     with torch.no_grad():
         accA = (net(X_test).argmax(1).cpu() == y_test_cpu).float().mean().item() * 100
 
-    Wh = hebbian_W1(seed=seed)  # full unlabeled data, independent of label_fraction
-    redundancy_check(Wh, "Hebbian", seed)
+    Wh = C.hebbian_W1(X_train_full, WIDTH, seed=seed)  # full unlabeled data, independent of label_fraction
+    C.redundancy_check(Wh, "Hebbian", seed)
 
-    roB, curveB = train_readout(Wh, X_sup, y_sup, track_curve=track_curve)
+    roB = C.build_readout(WIDTH, seed=seed)
+    HtrB = C.hebbian_features(X_sup, Wh)
+    HteB = C.hebbian_features(X_test, Wh)
+    roB, curveB_raw = C.train_readout(
+        roB, HtrB, y_sup, epochs=READOUT_EPOCHS,
+        track_curve=track_curve, H_test=HteB, y_test=y_test,
+    )
+    curveB = curveB_raw  # list of (epoch, acc)
     with torch.no_grad():
-        accB = (
-            roB(F.relu(X_test @ Wh.t())).argmax(1).cpu() == y_test_cpu
-        ).float().mean().item() * 100
+        accB = (roB(HteB).argmax(1).cpu() == y_test_cpu).float().mean().item() * 100
 
-    Wr = random_W1(seed=seed)
-    redundancy_check(Wr, "Random", seed)
-    roC, curveC = train_readout(Wr, X_sup, y_sup, track_curve=track_curve)
+    Wr = C.random_W1(WIDTH, seed=seed)
+    C.redundancy_check(Wr, "Random", seed)
+    roC = C.build_readout(WIDTH, seed=seed)
+    HtrC = C.hebbian_features(X_sup, Wr)
+    HteC = C.hebbian_features(X_test, Wr)
+    roC, curveC = C.train_readout(roC, HtrC, y_sup, epochs=READOUT_EPOCHS)
     with torch.no_grad():
-        accC = (
-            roC(F.relu(X_test @ Wr.t())).argmax(1).cpu() == y_test_cpu
-        ).float().mean().item() * 100
+        accC = (roC(HteC).argmax(1).cpu() == y_test_cpu).float().mean().item() * 100
 
     extras = dict(
         net=net,
@@ -214,7 +122,6 @@ def run_pipeline(seed, label_fraction, track_curve=False):
         Wr=Wr,
         roB=roB,
         roC=roC,
-        predsA=net(X_test).argmax(1).cpu() if not track_curve else None,
     )
     return dict(
         backprop=accA,
@@ -270,7 +177,7 @@ for b, k in zip(bars, keys):
 plt.ylabel("Test accuracy (%)")
 plt.ylim(0, 100)
 plt.title(
-    f"MNIST: does it matter HOW the hidden layer learns?\n(mean \u00b1 std over {len(SEEDS)} seeds)"
+    f"MNIST: does it matter HOW the hidden layer learns?\n(mean ± std over {len(SEEDS)} seeds)"
 )
 plt.tight_layout()
 plt.savefig("output/accuracy_comparison.png", dpi=150)
@@ -358,12 +265,13 @@ net, Wh, Wr, roB, roC = (
 
 with torch.no_grad():
     predsA = net(X_test).argmax(1).cpu()
-    predsB = roB(F.relu(X_test @ Wh.t())).argmax(1).cpu()
-    predsC = roC(F.relu(X_test @ Wr.t())).argmax(1).cpu()
+    predsB = roB(C.hebbian_features(X_test, Wh)).argmax(1).cpu()
+    predsC = roC(C.hebbian_features(X_test, Wr)).argmax(1).cpu()
 
+Wh_templates = Wh.W if isinstance(Wh, C.HebbianState) else Wh  # mode="lateral" -> unwrap templates
 results = {
     "Backprop\n(end-to-end)": dict(preds=predsA, W1=net[0].weight.detach().cpu()),
-    "Hebbian\n+ readout": dict(preds=predsB, W1=Wh.cpu()),
+    "Hebbian\n+ readout": dict(preds=predsB, W1=Wh_templates.cpu()),
     "Random\n+ readout": dict(preds=predsC, W1=Wr.cpu()),
 }
 for name, r in results.items():
@@ -409,9 +317,9 @@ for row, n in enumerate(names):
         if col < len(wrong):
             wi = wrong[col].item()
             ax.imshow(raw_test[wi], cmap="gray")
-            ax.set_title(f"{y_test_cpu[wi].item()}\u2192{preds[wi].item()}", fontsize=9)
+            ax.set_title(f"{y_test_cpu[wi].item()}→{preds[wi].item()}", fontsize=9)
     axes[row, 0].set_ylabel(row_labels[row], fontsize=10, labelpad=8)
-plt.suptitle("Digits each model gets wrong  (true \u2192 predicted)")
+plt.suptitle("Digits each model gets wrong  (true → predicted)")
 plt.subplots_adjust(hspace=0.6)
 plt.tight_layout()
 plt.savefig("output/misclassified.png", dpi=150)

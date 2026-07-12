@@ -8,8 +8,13 @@ comparison. Run it directly:
 
 ...or paste the numbered sections into separate notebook cells.
 
-Expected result: ~96-97% test accuracy after 5 epochs. That number is the
+Expected result: ~97-98% test accuracy after 5 epochs. That number is the
 baseline you'll compare the Hebbian model against.
+
+Hidden width is 400 to match every other script in this folder (hebbian.py,
+catastrophic_forgetting.py, compare_and_visualize_v2.py, ...) -- the whole
+comparison only means something if every model gets the same-size hidden
+layer.
 """
 
 import torch
@@ -23,10 +28,26 @@ import torchvision.transforms as transforms
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
 
+HIDDEN = 400  # shared hidden-layer width across every script in this folder
+
 # ---------------------------------------------------------------------------
-# 1. Data: download MNIST and wrap it in DataLoaders that hand out batches
+# 1. Data: download MNIST and wrap it in DataLoaders that hand out batches.
+#    Pixels are mean-centered on the TRAINING set's average image before
+#    being handed to the model -- otherwise every input shares a large
+#    "average digit" component that isn't useful signal (see
+#    context/project_notes_backprop_vs_hebbian.md, section 6). This matters
+#    less for backprop than for the Hebbian model, but centering identically
+#    everywhere keeps the comparison apples-to-apples.
 # ---------------------------------------------------------------------------
-transform = transforms.ToTensor()   # PIL image -> tensor, pixels scaled to [0, 1]
+train_set_raw = torchvision.datasets.MNIST(root="./data", train=True, download=True)
+PIXEL_MEAN = (train_set_raw.data.float() / 255.0).view(len(train_set_raw), -1).mean(dim=0)
+
+class Center:
+    def __call__(self, img):
+        x = transforms.functional.to_tensor(img).view(-1)
+        return (x - PIXEL_MEAN).view(1, 28, 28)
+
+transform = Center()
 
 train_set = torchvision.datasets.MNIST(root="./data", train=True,  download=True, transform=transform)
 test_set  = torchvision.datasets.MNIST(root="./data", train=False, download=True, transform=transform)
@@ -36,17 +57,17 @@ test_loader  = torch.utils.data.DataLoader(test_set,  batch_size=1000, shuffle=F
 
 # ---------------------------------------------------------------------------
 # 2. Model: a small multi-layer perceptron (MLP)
-#    784 inputs (28x28 pixels) -> 128 hidden units -> 10 outputs (digits 0-9)
+#    784 inputs (28x28 pixels) -> 400 hidden units -> 10 outputs (digits 0-9)
 #    Kept deliberately small and non-convolutional so it's a fair, apples-to-
 #    apples match for the Hebbian model later.
 # ---------------------------------------------------------------------------
 class MLP(nn.Module):
     def __init__(self):
         super().__init__()
-        self.flatten = nn.Flatten()      # [batch, 1, 28, 28] -> [batch, 784]
-        self.fc1 = nn.Linear(784, 128)   # hidden layer
-        self.relu = nn.ReLU()            # non-linearity
-        self.fc2 = nn.Linear(128, 10)    # output layer: one score per digit
+        self.flatten = nn.Flatten()          # [batch, 1, 28, 28] -> [batch, 784]
+        self.fc1 = nn.Linear(784, HIDDEN)    # hidden layer
+        self.relu = nn.ReLU()                # non-linearity
+        self.fc2 = nn.Linear(HIDDEN, 10)     # output layer: one score per digit
 
     def forward(self, x):
         x = self.flatten(x)
