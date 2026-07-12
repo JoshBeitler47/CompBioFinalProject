@@ -36,7 +36,7 @@ test_loader  = torch.utils.data.DataLoader(test_set,  batch_size=1000, shuffle=F
 
 # ---------------------------------------------------------------------------
 # 2. Model: a small multi-layer perceptron (MLP)
-#    784 inputs (28x28 pixels) -> 128 hidden units -> 10 outputs (digits 0-9)
+#    784 inputs (28x28 pixels) -> 400 hidden units -> 10 outputs (digits 0-9)
 #    Kept deliberately small and non-convolutional so it's a fair, apples-to-
 #    apples match for the Hebbian model later.
 # ---------------------------------------------------------------------------
@@ -44,9 +44,9 @@ class MLP(nn.Module):
     def __init__(self):
         super().__init__()
         self.flatten = nn.Flatten()      # [batch, 1, 28, 28] -> [batch, 784]
-        self.fc1 = nn.Linear(784, 128)   # hidden layer
+        self.fc1 = nn.Linear(784, 400)   # hidden layer
         self.relu = nn.ReLU()            # non-linearity
-        self.fc2 = nn.Linear(128, 10)    # output layer: one score per digit
+        self.fc2 = nn.Linear(400, 10)    # output layer: one score per digit
 
     def forward(self, x):
         x = self.flatten(x)
