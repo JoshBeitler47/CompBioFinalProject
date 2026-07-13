@@ -56,7 +56,7 @@
     <div class="card">
       <span class="tag tag-hib">Unsupervised + Supervised</span>
       <h3>Hebbian + readout</h3>
-      <p>Hidden layer learns via competitive Hebbian learning (3 epochs, no labels, no <code>.backward()</code>). Then frozen; a linear readout is trained with Adam on the resulting features.</p>
+      <p>Hidden layer learns via anti-Hebbian lateral inhibition + homeostasis (3 epochs, no labels, no <code>.backward()</code>): units settle into activity under mutual inhibition, then feedforward weights, lateral inhibitory weights, and firing thresholds all update locally. Then frozen; a linear readout is trained with Adam on the resulting features.</p>
     </div>
     <div class="card">
       <span class="tag tag-rnd">Untrained + Supervised</span>
@@ -66,7 +66,7 @@
     <div class="card">
       <span class="tag tag-tuning">Tuned</span>
       <h3>Hebbian (tuned)</h3>
-      <p>Same Hebbian rule with more epochs (15) and an annealed learning rate (0.1 &rarr; 0.01). Used in seed-variability and Fashion-MNIST experiments.</p>
+      <p>Same Hebbian rule with a higher target activity rate (0.08 &rarr; 0.20, more units active per input) and a gentler homeostatic threshold learning rate. Helps on MNIST; does not transfer to Fashion-MNIST. Used in seed-variability and Fashion-MNIST experiments.</p>
     </div>
   </div>
 </section>
@@ -145,14 +145,18 @@
 
 <section id="source">
   <h2>Source Code</h2>
-  <p>All experiments are implemented in Python with PyTorch. Scripts are located in <code>src/</code>:</p>
+  <p>All experiments are implemented in Python with PyTorch. Scripts are located in <code>models/</code>:</p>
   <ul>
-    <li><strong>src/backprop.py</strong> &mdash; baseline MLP trained end-to-end with backpropagation</li>
-    <li><strong>src/hebbian.py</strong> &mdash; competitive Hebbian hidden layer + supervised linear readout</li>
-    <li><strong>src/compare_and_visualize_v2.py</strong> &mdash; multi-model comparison with seed averaging, sample efficiency sweep, and training curves</li>
-    <li><strong>src/catastrophic_forgetting.py</strong> &mdash; tests whether new learning erases old knowledge</li>
-    <li><strong>src/multi_seed_variability.py</strong> &mdash; same comparison across 5 seeds with per-seed scatter</li>
-    <li><strong>src/fashion_mnist_variability.py</strong> &mdash; same comparison on Fashion-MNIST</li>
+    <li><strong>models/backprop.py</strong> &mdash; baseline MLP trained end-to-end with backpropagation</li>
+    <li><strong>models/hebbian.py</strong> &mdash; Hebbian hidden layer (anti-Hebbian lateral inhibition + homeostasis) + supervised linear readout</li>
+    <li><strong>models/feedback_alignment.py</strong> &mdash; backprop variant with weight transport removed from the backward pass</li>
+    <li><strong>models/compare_and_visualize_v2.py</strong> &mdash; multi-model comparison with seed averaging, sample efficiency sweep, and training curves</li>
+    <li><strong>models/catastrophic_forgetting.py</strong> &mdash; tests whether new learning erases old knowledge, dense vs. sparse, plus a readout-vs-representation probe</li>
+    <li><strong>models/multi_seed_variability.py</strong> &mdash; same comparison across 5 seeds with per-seed scatter</li>
+    <li><strong>models/fashion_mnist_variability.py</strong> &mdash; same comparison on Fashion-MNIST</li>
+    <li><strong>models/filters_fashion.py</strong> &mdash; learned-filter visualization on Fashion-MNIST</li>
+    <li><strong>models/accuracy_fashion.py</strong> &mdash; accuracy bar chart on Fashion-MNIST</li>
+    <li><strong>models/common.py</strong> &mdash; shared data loading and training helpers used by every script above</li>
   </ul>
 </section>
 
