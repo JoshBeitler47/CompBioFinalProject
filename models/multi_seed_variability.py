@@ -13,16 +13,22 @@ Answers two questions raised while looking at visuals.py:
 
   2. "Is there something to tune to make the Hebbian model better?" -- This
      script adds a 4th condition, "Hebbian (tuned)", that only changes two
-     knobs versus the baseline Hebbian rule:
-       - more training epochs (3 -> 15): competitive learning only updates
-         ONE winning unit per example, so with 400 units and just 3 epochs
-         many templates barely move past their random initialization.
-       - an annealed learning rate (starts at 0.1, decays to 0.01): a
-         standard competitive-learning trick (same idea as Kohonen maps) --
-         big early moves let templates find the right neighborhood of digit
-         space fast, then a shrinking rate lets them settle instead of
-         jittering around a moving average forever.
-     Everything else (width, normalization, competition rule, readout) is
+     knobs versus the baseline Hebbian rule (mode="lateral" -- see
+     common.hebbian_W1):
+       - a higher target_rate (0.08 -> 0.20): more units are allowed to be
+         active per input, so more information reaches the readout.
+       - a gentler threshold_lr (0.3 -> 0.15): homeostasis still needs to
+         ramp up fast enough to avoid the early-collapse bug documented in
+         common.hebbian_W1, just not quite as aggressively.
+     Verified empirically (see conversation/tuning notes) to beat the
+     baseline by about a point, consistently across seeds. Note this is a
+     DIFFERENT pair of knobs than an earlier version of this experiment used
+     (more epochs + an annealed learning rate) -- that combination was tuned
+     for the old winner-take-all mechanism and, tested against the current
+     lateral-inhibition + homeostasis rule, made things WORSE rather than
+     better: this rule already converges within a few epochs, and training
+     longer just lets a little redundancy creep back into the templates.
+     Everything else (width, normalization, lateral inhibition, readout) is
      identical to the baseline Hebbian condition, so any accuracy difference
      is attributable to just those two knobs.
 

@@ -97,9 +97,17 @@ X_test,  y_test  = to_matrix(test_set)
 #        this is a soft population code, not one single winner.
 #
 #    (b) LEARN, using only that settled activity y:
-#          - W1 (feedforward): every unit with y > 0 nudges its template
-#            toward x (the Hebbian part), then renormalizes -- the same
-#            Oja-style stabilization used before, so weights can't blow up.
+#          - W1 (feedforward): each unit nudges its template toward x, SCALED
+#            BY ITS OWN ACTIVITY LEVEL -- a unit that barely crossed threshold
+#            moves only slightly; a confidently, strongly active unit moves
+#            fully. This is the actual "y" term every Hebbian rule has
+#            (Delta w ~ y * x). An earlier version of this file dropped that
+#            scaling (gave every unit that fired at all the SAME size step,
+#            regardless of how strongly) -- that let marginal, low-confidence
+#            activations drag many templates toward the same generic pattern,
+#            collapsing almost all 400 units down to a handful of effectively
+#            distinct templates. Then renormalizes -- the same Oja-style
+#            stabilization used before, so weights can't blow up.
 #          - L1 (lateral, THE ANTI-HEBBIAN RULE): if two units are BOTH
 #            active more often than you'd expect by chance, strengthen the
 #            inhibition between them. Fire together -> get pushed apart next
@@ -112,14 +120,18 @@ X_test,  y_test  = to_matrix(test_set)
 #            keeps every unit's activity near a small target instead of a
 #            few units hogging everything, and makes the resulting code
 #            sparse (few active units per input) as a side effect, not a
-#            bolted-on hack.
+#            bolted-on hack. THRESHOLD_LR needs to be fast enough that this
+#            catches up within the first few dozen batches -- theta starts at
+#            0 (no threshold at all), so too slow a ramp-up lets far too many
+#            units fire on every input for a long stretch before any
+#            competitive pressure exists to stop them collapsing together.
 # ---------------------------------------------------------------------------
 HIDDEN = 400          # number of hidden units / templates
 HEBB_EPOCHS = 3
 HEBB_LR = 0.05
 TARGET_RATE = 0.08     # p: target fraction of units active per input
-LATERAL_LR = 0.02       # eta_L: how fast inhibitory connections adapt
-THRESHOLD_LR = 0.01     # eta_theta: how fast thresholds adapt (kept slow -- homeostasis is meant to be gradual)
+LATERAL_LR = 0.1        # eta_L: how fast inhibitory connections adapt
+THRESHOLD_LR = 0.3      # eta_theta: how fast thresholds adapt
 RELAX_ITERS = 4         # settling steps per batch
 LATERAL_CAP = 2.0       # safety clip so inhibition can't blow up numerically
 
@@ -147,15 +159,17 @@ for epoch in range(1, HEBB_EPOCHS + 1):
 
         b = x.size(0)
         activity_sum = y.sum(dim=0)              # [HIDDEN]
-        has_activity = activity_sum > 1e-6
+        mean_y = activity_sum / b                # [HIDDEN], each unit's average activity this batch
+        has_activity = mean_y > 1e-6
 
-        # (b1) Feedforward Hebbian update, active units only, Oja-style renormalized.
+        # (b1) Feedforward Hebbian update: move toward the activity-weighted mean
+        # input direction, step size scaled by mean_y (confidence) -- see the
+        # comment above for why -- then renormalize (Oja-style stabilization).
         weighted_x = y.t() @ x                   # [HIDDEN, 784]
-        mean_x = torch.zeros_like(W1)
-        mean_x[has_activity] = weighted_x[has_activity] / activity_sum[has_activity].unsqueeze(1)
-        W1[has_activity] = F.normalize(
-            W1[has_activity] + HEBB_LR * (mean_x[has_activity] - W1[has_activity]), dim=1
-        )
+        target = torch.zeros_like(W1)
+        target[has_activity] = weighted_x[has_activity] / activity_sum[has_activity].unsqueeze(1)
+        step = HEBB_LR * mean_y.unsqueeze(1) * (target - W1)
+        W1[has_activity] = F.normalize(W1[has_activity] + step[has_activity], dim=1)
 
         # (b2) Anti-Hebbian lateral update: co-activity above chance (TARGET_RATE^2)
         # strengthens mutual inhibition; below chance, it relaxes back down (never negative).
