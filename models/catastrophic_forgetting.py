@@ -275,4 +275,38 @@ plt.tight_layout()
 plt.savefig("output/catastrophic_forgetting.png", dpi=150)
 plt.close()
 
-print("\nSaved: output/catastrophic_forgetting.png")
+# ---- Figure 2: readout forgetting vs. representation forgetting ----
+# The bar chart above only shows what the DEPLOYED readout can still do --
+# it can't tell you whether Task A information is actually gone from the
+# representation, or just inaccessible to a readout that's since been
+# retrained on all-Task-B examples. The fresh-probe number (already computed
+# above, just never plotted) answers that: train a BRAND NEW small classifier
+# on the post-Task-B representation, using only Task A data. If that probe
+# recovers close to the "before" accuracy even though "after" collapsed,
+# the features still contain the information -- the deployed readout simply
+# forgot how to read it out, which is a different (and much less alarming)
+# failure than the representation itself being destroyed.
+probe_means = [np.mean(probe_records[c]) for c in CONDITIONS]
+
+x = np.arange(len(CONDITIONS))
+width = 0.27
+plt.figure(figsize=(9.5, 5))
+plt.bar(x - width, before, width, label="Before learning Task B (deployed readout)", color="#4C72B0")
+plt.bar(x, after, width, label="After learning Task B (deployed readout)", color="#C44E52")
+plt.bar(
+    x + width, probe_means, width,
+    label="After learning Task B (FRESH probe, same features)", color="#55A868",
+)
+plt.xticks(x, labels)
+plt.ylabel("Test accuracy on Task A (digits 0-4), %")
+plt.ylim(0, 100)
+plt.title(
+    "Did the FEATURES forget, or just the readout?\n"
+    f"(mean over {len(SEEDS)} seeds)"
+)
+plt.legend(loc="lower left", fontsize=8.5)
+plt.tight_layout()
+plt.savefig("output/catastrophic_forgetting_probe.png", dpi=150)
+plt.close()
+
+print("\nSaved: output/catastrophic_forgetting.png, output/catastrophic_forgetting_probe.png")

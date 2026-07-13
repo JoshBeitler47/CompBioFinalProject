@@ -29,6 +29,8 @@ relative `./data` and `output/` paths resolve correctly):
 | `python models/catastrophic_forgetting.py` | Split-MNIST (train on digits 0-4, then 5-9, re-test on 0-4) for Backprop, Hebbian, and Random, each in dense and sparse (top-k masked) variants, to disentangle whether forgetting comes from the *learning rule* or from representation *sparsity*. |
 | `python models/multi_seed_variability.py` | Backprop / Hebbian / Hebbian-tuned / Random across 5 seeds on MNIST, to check how much a single-run number can be trusted. |
 | `python models/fashion_mnist_variability.py` | Same 4-condition sweep as above, on Fashion-MNIST, to see if a harder task separates Hebbian from a random projection. |
+| `python models/filters_fashion.py` | Same "what does each hidden unit look for" visualization as `compare_and_visualize_v2.py`'s filters panel, but on Fashion-MNIST -- shows Hebbian units converging on shared generic garment silhouettes instead of distinct shapes, a visual explanation for why its edge over Random shrinks on the harder dataset. |
+| `python models/accuracy_fashion.py` | Same 3-condition (Backprop / Hebbian / Random) multi-seed bar chart as `compare_and_visualize_v2.py`'s accuracy_comparison.png, but on Fashion-MNIST. |
 
 `models/common.py` is a shared library (data loading + centering, the competitive
 Hebbian rule, backprop/readout training, the seed-variability experiment runner) --
@@ -46,7 +48,10 @@ Scripts save PNGs to `output/` (already committed from a prior run):
 - `misclassified.png` — example digits each model gets wrong
 - `filters.png` — weight patterns of hidden units
 - `catastrophic_forgetting.png` — Task-A accuracy before/after learning Task B, dense vs. sparse
+- `catastrophic_forgetting_probe.png` — same experiment, but splits "after" into what the deployed readout can still do vs. what a FRESH readout can recover from the same (drifted) features -- shows most of the apparent forgetting is the readout's decision boundary being overwritten, not the underlying representation being destroyed
 - `seed_variability.png` / `fashion_seed_variability.png` — per-seed spread for the 4-condition sweep
+- `filters_fashion.png` — the filters visualization repeated on Fashion-MNIST
+- `accuracy_fashion.png` — the accuracy bar chart repeated on Fashion-MNIST
 
 `feedback_alignment.py` prints its results (accuracy + alignment angle per epoch)
 rather than saving a figure.
@@ -69,6 +74,8 @@ python models/compare_and_visualize_v2.py   # generate the main comparison figur
 python models/catastrophic_forgetting.py    # Split-MNIST forgetting experiment
 python models/multi_seed_variability.py     # seed spread + Hebbian tuning check (MNIST)
 python models/fashion_mnist_variability.py  # same, on Fashion-MNIST
+python models/filters_fashion.py            # filters visualization on Fashion-MNIST
+python models/accuracy_fashion.py           # accuracy bar chart on Fashion-MNIST
 ```
 
 The multi-seed / sweep scripts are the slowest (minutes per seed on CPU) --
