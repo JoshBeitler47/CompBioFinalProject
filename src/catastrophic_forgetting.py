@@ -333,33 +333,124 @@ print(
 models = ["Backprop", "Hebbian", "Random"]
 before = [b_before, h_before, r_before]
 after = [b_after, h_after, r_after]
+forgotten = [b_before - b_after, h_before - h_after, r_before - r_after]
 
 x = np.arange(len(models))
-width = 0.35
-plt.figure(figsize=(7, 5))
-plt.bar(
+width = 0.3
+fig, (ax1, ax2) = plt.subplots(
+    2, 1, figsize=(7, 6.5), gridspec_kw={"height_ratios": [2, 1]}
+)
+
+VISIBLE_MIN = 3.0  # minimum bar height for visibility of tiny after bars
+
+# --- Top panel: before vs after ---
+ax1.bar(
     x - width / 2,
     before,
     width,
-    label="Before learning Task B (digits 5-9)",
+    label="Before learning Task B",
     color="#4C72B0",
 )
-plt.bar(
+after_bars = ax1.bar(
     x + width / 2,
-    after,
+    [max(v, VISIBLE_MIN) for v in after],
     width,
-    label="After learning Task B (digits 5-9)",
+    label="After learning Task B",
     color="#C44E52",
+    hatch="////",
+    edgecolor="#C44E52",
+    linewidth=0.5,
 )
-plt.xticks(x, models)
-plt.ylabel("Test accuracy on Task A (digits 0-4), %")
-plt.ylim(0, 100)
-plt.title(
+for i, (bv, av) in enumerate(zip(before, after)):
+    ax1.text(i - width / 2, bv + 1, f"{bv:.1f}%", ha="center", va="bottom", fontsize=9)
+    ax1.text(
+        i + width / 2,
+        max(av, VISIBLE_MIN) + 1,
+        f"{av:.2f}%",
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        fontweight="bold",
+    )
+ax1.set_xticks(x)
+ax1.set_xticklabels(models)
+ax1.set_ylabel("Test accuracy on Task A (%)")
+ax1.set_ylim(0, 110)
+ax1.set_title(
     f"Catastrophic forgetting: does learning new digits erase old ones?\n(mean over {len(SEEDS)} seeds)"
 )
-plt.legend()
+ax1.legend(fontsize=8)
+
+# --- Bottom panel: forgotten amount ---
+bars = ax2.bar(x, forgotten, width * 1.5, color="#C44E52")
+for bar, val in zip(bars, forgotten):
+    ax2.text(
+        bar.get_x() + bar.get_width() / 2,
+        bar.get_height() + 1,
+        f"{val:.1f} pts",
+        ha="center",
+        va="bottom",
+        fontsize=10,
+        fontweight="bold",
+    )
+ax2.set_xticks(x)
+ax2.set_xticklabels(models)
+ax2.set_ylabel("Accuracy forgotten (pts)")
+ax2.set_ylim(0, 105)
+ax2.set_title("Accuracy drop (before − after)")
+
 plt.tight_layout()
 plt.savefig("output/catastrophic_forgetting.png", dpi=150)
 plt.close()
 
 print("\nSaved: output/catastrophic_forgetting.png")
+
+# ===========================================================================
+# Second figure: zoomed-in view of feature retention (linear probe)
+# ===========================================================================
+bp_probe = float(np.mean(records["backprop_probe"]))
+hb_probe = float(np.mean(records["hebbian_probe"]))
+rn_probe = float(np.mean(records["random_probe"]))
+
+fig2, ax = plt.subplots(figsize=(7, 5))
+x2 = np.arange(len(models))
+width2 = 0.25
+
+ax.bar(
+    x2 - width2 / 2, before, width2, label="Before Task B (baseline)", color="#4C72B0"
+)
+ax.bar(
+    x2 + width2 / 2,
+    [bp_probe, hb_probe, rn_probe],
+    width2,
+    label="Linear probe on post-Task-B features",
+    color="#55A868",
+)
+
+for i, (bv, pv) in enumerate(zip(before, [bp_probe, hb_probe, rn_probe])):
+    ax.text(
+        i - width2 / 2, bv + 0.3, f"{bv:.1f}%", ha="center", va="bottom", fontsize=9
+    )
+    ax.text(
+        i + width2 / 2,
+        pv + 0.3,
+        f"{pv:.2f}%",
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        fontweight="bold",
+    )
+ax.set_xticks(x2)
+ax.set_xticklabels(models)
+ax.set_ylabel("Test accuracy on Task A (%)")
+ax.set_ylim(85, 101)
+ax.set_title(
+    "Feature retention: how much Task A info survives in the\nrepresentation after Task B training?"
+)
+ax.legend(fontsize=9)
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+plt.tight_layout()
+plt.savefig("output/catastrophic_forgetting_feature_retention.png", dpi=150)
+plt.close()
+print("Saved: output/catastrophic_forgetting_feature_retention.png")

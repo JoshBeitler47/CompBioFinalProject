@@ -8,22 +8,30 @@ Backpropagation achieves high accuracy but requires a global error signal — bi
 
 ## Scripts
 
-Scripts have **no `.py` extension** — run them directly:
+All Python source is in `src/`:
 
 | Script | What it does |
 |---|---|
-| `python BACKPROP` | End-to-end backprop MLP (~97% test acc, 5 epochs). Baseline. |
-| `python HEBBIAN` | Unsupervised competitive Hebbian hidden layer + supervised linear readout. |
-| `python VISUALS` | Trains backprop, Hebbian, and random-hidden-layer control; saves 4 comparison PNGs. |
+| `python src/backprop.py` | End-to-end backprop MLP (~97% test acc). Baseline. |
+| `python src/hebbian.py` | Unsupervised competitive Hebbian hidden layer + supervised linear readout. |
+| `python src/compare_and_visualize_v2.py` | Multi-model, multi-seed comparison with sample efficiency & training curves. |
+| `python src/catastrophic_forgetting.py` | Tests forgetting: train on digits 0-4, then 5-9. |
+| `python src/multi_seed_variability.py` | Same experiment across 5 seeds with scatter + error bars. |
+| `python src/fashion_mnist_variability.py` | Same comparison on Fashion-MNIST. |
 
 ## Outputs
 
-`VISUALS` produces four figures, already committed:
+Generated PNGs in `output/`:
 
 - `accuracy_comparison.png` — bar chart of test accuracies
 - `confusion_matrices.png` — error matrices (diagonal removed)
 - `misclassified.png` — example digits each model gets wrong
 - `filters.png` — weight patterns of hidden units
+- `sample_efficiency.png` — accuracy vs. fraction of labeled data
+- `training_curves.png` — accuracy vs. epoch
+- `seed_variability.png` — per-seed scatter across 5 seeds
+- `catastrophic_forgetting.png` — before/after task interference
+- `fashion_seed_variability.png` — same on Fashion-MNIST
 
 ## Requirements
 
@@ -34,11 +42,11 @@ Scripts have **no `.py` extension** — run them directly:
 ## Usage
 
 ```sh
-python BACKPROP      # baseline accuracy
-python HEBBIAN       # comparison accuracy
-python VISUALS       # generate all four PNG figures
+python src/backprop.py                    # baseline accuracy
+python src/hebbian.py                     # comparison accuracy
+python src/compare_and_visualize_v2.py    # generate comparison PNGs
 ```
 
 ## Architecture note
 
-`VISUALS` includes a random-hidden-layer control to verify the Hebbian layer learned real structure. If Hebbian significantly outperforms random, the local rule discovered meaningful features without labels or backprop.
+All models share a `784 -> 400 -> 10` architecture. The compare script includes a random-hidden-layer control to verify the Hebbian layer learned real structure.

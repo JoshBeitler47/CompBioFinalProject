@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backprop vs. Hebbian Learning on MNIST</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+<header>
+  <h1>Backprop vs. Hebbian Learning</h1>
+  <p>Do neural networks <em>need</em> a global error signal, or can local, biologically-plausible rules discover meaningful features on their own?</p>
+</header>
+
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#methods">Methods</a>
+  <a href="#accuracy">Accuracy</a>
+  <a href="#sample-efficiency">Sample Efficiency</a>
+  <a href="#training-curves">Training Curves</a>
+  <a href="#catastrophic-forgetting">Forgetting</a>
+  <a href="#seed-variability">Variability</a>
+  <a href="#fashion-mnist">Fashion-MNIST</a>
+  <a href="#confusion">Confusion</a>
+  <a href="#filters">Filters</a>
+  <a href="#misclassified">Errors</a>
+  <a href="#source">Source</a>
+</nav>
+
+<main>
+
+<section id="overview">
+  <h2>Overview</h2>
+  <p>We compare two fundamentally different learning principles on the MNIST digit classification task using a shared <strong>784 &rarr; 400 &rarr; 10</strong> MLP architecture:</p>
+  <ul>
+    <li><strong>Backpropagation</strong> &mdash; the standard deep learning workhorse. Every weight is updated via a global error signal (<code>loss.backward()</code>), which is effective but biologically implausible.</li>
+    <li><strong>Competitive Hebbian learning</strong> &mdash; a local, label-free rule. Hidden units update using only their own activations ("cells that fire together, wire together"), then a small supervised readout is trained on top.</li>
+  </ul>
+  <div class="highlight">
+    <p><strong>The gap between these two approaches <em>is</em> the result.</strong> We also include a random-hidden-layer control to verify that any Hebbian improvement over chance reflects real feature learning, not just lucky projections.</p>
+  </div>
+</section>
+
+<section id="methods">
+  <h2>Methods</h2>
+  <div class="method-cards">
+    <div class="card">
+      <span class="tag tag-bp">Supervised</span>
+      <h3>Backprop (end-to-end)</h3>
+      <p>Standard MLP trained with Adam for 8 epochs. Every weight, including the hidden layer, receives gradient information from the output loss.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-hib">Unsupervised + Supervised</span>
+      <h3>Hebbian + readout</h3>
+      <p>Hidden layer learns via competitive Hebbian learning (3 epochs, no labels, no <code>.backward()</code>). Then frozen; a linear readout is trained with Adam on the resulting features.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-rnd">Untrained + Supervised</span>
+      <h3>Random + readout</h3>
+      <p>Hidden layer weights are random and <em>never</em> trained. A linear readout is trained on top. This control measures how much structure a random projection provides.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-tuning">Tuned</span>
+      <h3>Hebbian (tuned)</h3>
+      <p>Same Hebbian rule with more epochs (15) and an annealed learning rate (0.1 &rarr; 0.01). Used in seed-variability and Fashion-MNIST experiments.</p>
+    </div>
+  </div>
+</section>
+
+<section id="accuracy">
+  <h2>Test Accuracy</h2>
+  <figure>
+    <img src="output/accuracy_comparison.png" alt="Accuracy comparison bar chart">
+    <figcaption>Mean test accuracy &plusmn; 1 standard deviation across 3 random seeds. Backprop leads, but Hebbian features outperform a random projection, confirming that local learning discovered real structure.</figcaption>
+  </figure>
+</section>
+
+<section id="sample-efficiency">
+  <h2>Sample Efficiency</h2>
+  <figure>
+    <img src="output/sample_efficiency.png" alt="Sample efficiency plot">
+    <figcaption>Accuracy as a function of the fraction of labeled training data used. The Hebbian hidden layer always trains on the full <em>unlabeled</em> set &mdash; only the supervised readout is label-starved. This highlights a key advantage of unsupervised pre-training.</figcaption>
+  </figure>
+</section>
+
+<section id="training-curves">
+  <h2>Training Curves</h2>
+  <figure>
+    <img src="output/training_curves.png" alt="Training curves">
+    <figcaption>Test accuracy over training epochs. Backprop converges rapidly, while the Hebbian readout improves more gradually over its longer training schedule.</figcaption>
+  </figure>
+</section>
+
+<section id="catastrophic-forgetting">
+  <h2>Catastrophic Forgetting</h2>
+  <figure>
+    <img src="output/catastrophic_forgetting.png" alt="Catastrophic forgetting bar chart">
+    <figcaption>Test accuracy on Task A (digits 0&ndash;4) before and after training on Task B (digits 5&ndash;9). A larger drop indicates more forgetting. Linear probes measure how much Task A information is still recoverable from each model's hidden representation after Task B.</figcaption>
+  </figure>
+</section>
+
+<section id="seed-variability">
+  <h2>Across-Seed Variability</h2>
+  <figure>
+    <img src="output/seed_variability.png" alt="Seed variability scatter plot">
+    <figcaption>Each faint dot is one of 5 independent runs. The diamond marks the mean &plusmn; 1 std. The spread across seeds is more informative than any single run, and the tuned Hebbian variant closes part of the gap with backprop.</figcaption>
+  </figure>
+</section>
+
+<section id="fashion-mnist">
+  <h2>Fashion-MNIST</h2>
+  <figure>
+    <img src="output/fashion_seed_variability.png" alt="Fashion-MNIST variability">
+    <figcaption>The same 4-condition comparison on Fashion-MNIST, a harder 10-class task. With more separable classes, the tuned Hebbian model pulls clearly ahead of the random baseline.</figcaption>
+  </figure>
+</section>
+
+<section id="confusion">
+  <h2>Confusion Matrices</h2>
+  <figure>
+    <img src="output/confusion_matrices.png" alt="Confusion matrices">
+    <figcaption>Error matrices (diagonal removed) for a representative run. Darker cells mark digit pairs the model frequently confuses. Backprop's matrix is sparsest, reflecting its higher accuracy.</figcaption>
+  </figure>
+</section>
+
+<section id="filters">
+  <h2>Hidden Unit Filters</h2>
+  <figure>
+    <img src="output/filters.png" alt="Weight filters">
+    <figcaption>The first 10 hidden-unit weight patterns reshaped to 28&times;28. Backprop units develop stroke detectors; Hebbian units learn soft digit templates; Random units show no structure.</figcaption>
+  </figure>
+</section>
+
+<section id="misclassified">
+  <h2>Misclassified Examples</h2>
+  <figure>
+    <img src="output/misclassified.png" alt="Misclassified digits">
+    <figcaption>Examples each model gets wrong (true digit &rarr; predicted digit). Comparing the error patterns reveals which digit confusions are shared and which are unique to each learning rule.</figcaption>
+  </figure>
+</section>
+
+<section id="source">
+  <h2>Source Code</h2>
+  <p>All experiments are implemented in Python with PyTorch. Scripts are located in <code>src/</code>:</p>
+  <ul>
+    <li><strong>src/backprop.py</strong> &mdash; baseline MLP trained end-to-end with backpropagation</li>
+    <li><strong>src/hebbian.py</strong> &mdash; competitive Hebbian hidden layer + supervised linear readout</li>
+    <li><strong>src/compare_and_visualize_v2.py</strong> &mdash; multi-model comparison with seed averaging, sample efficiency sweep, and training curves</li>
+    <li><strong>src/catastrophic_forgetting.py</strong> &mdash; tests whether new learning erases old knowledge</li>
+    <li><strong>src/multi_seed_variability.py</strong> &mdash; same comparison across 5 seeds with per-seed scatter</li>
+    <li><strong>src/fashion_mnist_variability.py</strong> &mdash; same comparison on Fashion-MNIST</li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  <p>Built with PyTorch &middot; Figures by Matplotlib &middot; <a href="https://github.com/JoshBeitler47/CompBioFinalProject">GitHub</a></p>
+</footer>
+
+</body>
+</html>
