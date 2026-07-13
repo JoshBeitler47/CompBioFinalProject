@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your brain cannot run backpropagation — backprop vs. Hebbian learning on MNIST</title>
+<meta name="description" content="Backpropagation is biologically impossible. We built the biologically legal alternative, raced them on handwritten digits, and found exactly which illegal move buys backprop its accuracy.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<nav>
+  <div class="nav-inner">
+    <span class="nav-mark"><span class="b">backprop</span> / <span class="h">the brain</span></span>
+    <div class="nav-links">
+      <a href="#demo">Demo</a>
+      <a href="#question">The question</a>
+      <a href="#synapse">The synapse</a>
+      <a href="#history">History</a>
+      <a href="#ladder">The result</a>
+      <a href="#filters">What it learned</a>
+      <a href="#breaks">Where it breaks</a>
+      <a href="#forget">Forgetting</a>
+      <a href="#sowhat">So what</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+
+<!-- ─────────────────────────── HERO ─────────────────────────── -->
+<section class="hero">
+  <div class="grid-field"></div>
+  <div class="wide">
+    <div class="kicker">Carnegie Mellon Pre-College · Computational Biology · Topic 6</div>
+    <h1>Your brain <span class="cut">cannot</span> run backpropagation.</h1>
+    <p class="hero-deck">
+      Backprop is the algorithm behind every neural network you have ever heard of. It is also,
+      physically, something a synapse <strong>cannot do</strong> — for reasons we can name precisely.
+      So we built the biologically legal alternative, raced them on handwritten digits, and went
+      looking for the exact place where the accuracy comes from.
+    </p>
+
+    <div class="ladder-strip" id="ladder-strip"></div>
+    <p class="note" style="margin-top:1rem; max-width:70ch">
+      Test accuracy on MNIST. Same 784→400→10 network in every case. The only difference is
+      <em>how the middle layer learns</em>. Backprop wins by <strong style="color:var(--ink)">8.7 points</strong> —
+      and the interesting question is which of its biologically impossible moves is actually paying for that.
+    </p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 1. DEMO ─────────────────────────── -->
+<section id="demo">
+  <div class="wide">
+    <div class="section-head rise">
+      <div class="eyebrow">Draw one</div>
+      <h2>Two learning rules, arguing in real time.</h2>
+      <p class="lede" style="max-width:66ch">
+        Both networks below are real, trained, and running <strong>in this browser</strong> — no server,
+        no API. Draw a digit and watch them disagree. The strip under each verdict is that model's
+        400 hidden units lighting up.
+      </p>
+    </div>
+
+    <div class="panel rise">
+      <div class="demo">
+        <div class="pad-col">
+          <canvas id="pad" width="280" height="280" aria-label="Drawing pad. Draw a digit from 0 to 9."></canvas>
+          <div class="pad-tools">
+            <button class="btn" id="pad-clear">Clear</button>
+            <button class="btn" id="pad-example">Real test digit</button>
+          </div>
+          <div class="note" id="pad-truth">draw a digit from 0–9</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:1rem;">
+          <div class="verdicts">
+            <div class="verdict" data-m="backprop" style="--c:var(--machine)">
+              <div class="who">Backprop<small>gradient descent</small></div>
+              <div class="guess none">–</div>
+              <div>
+                <div class="bars10">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <div class="hidden-strip">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="verdict" data-m="hebbian" style="--c:var(--bio)">
+              <div class="who">Hebbian<small>local, label-free</small></div>
+              <div class="guess none">–</div>
+              <div>
+                <div class="bars10">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <div class="hidden-strip">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo-status" id="demo-status">Loading weights…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 2. THE QUESTION ─────────────────────────── -->
+<section id="question">
+  <div class="wrap">
+    <div class="section-head rise">
+      <div class="eyebrow">The question</div>
+      <h2>What we're actually comparing.</h2>
+    </div>
+
+    <div class="rise">
+      <p>
+        A neural network is a stack of numbers. Each connection between two units holds one number —
+        a <strong>weight</strong> — and the whole network's knowledge is nothing but the pattern of
+        those numbers. Training a network means answering one question, over and over:
+        <em>given what just happened, how should each of these numbers change?</em>
+      </p>
+      <p>
+        There are two famous answers, and they could not be more different in spirit.
+      </p>
+
+      <div class="two-col" style="margin:2rem 0;">
+        <div class="model-card" style="--c:var(--bio)">
+          <div class="mc-name">Hebbian, 1949</div>
+          <div class="mc-what">
+            If the cell sending the signal and the cell receiving it were both active,
+            <strong>make the number bigger.</strong> That's it. Donald Hebb proposed this with
+            no evidence at all. Twenty-four years later, biologists found the mechanism.
+          </div>
+        </div>
+        <div class="model-card" style="--c:var(--machine)">
+          <div class="mc-name">Backprop, 1986</div>
+          <div class="mc-what">
+            Work out how much <em>this specific number</em> contributed to the network's mistake,
+            and nudge it to make the mistake smaller. This is the
+            <strong>credit-assignment problem</strong>, and backprop solves it exactly, using calculus.
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:2.5rem">The bridge — and we have to be honest about it</h3>
+      <p>
+        You cannot run a fair race between these two straight out of the box, and it's worth
+        saying why rather than hiding it.
+      </p>
+      <p>
+        Hebbian learning is <strong>unsupervised</strong>. It has no idea what a "7" is. It has never
+        been told the answer to anything. So it cannot classify digits — not because it's weak, but
+        because classification is a question it was never asked. Backprop, by contrast, is defined
+        by being told the answer.
+      </p>
+      <p>
+        So we do what Fukushima did in 1980, and what the field still does: let the Hebbian rule
+        learn <em>features</em>, then bolt a small supervised classifier on top of those features.
+        To keep it fair, <strong>every model on the bench gets the same bolt-on classifier</strong> —
+        one linear readout, trained with labels, identical in all four cases.
+      </p>
+
+      <div class="rule-box">
+        <span class="rl"><span class="tk-dim">input</span> 784 &nbsp;───▶&nbsp; <span class="tk-bio">hidden</span> 400 &nbsp;───▶&nbsp; <span class="tk-dim">readout</span> 10</span>
+        <span class="cap">
+          The readout is supervised in all four models. The <em>only</em> thing we vary is how the
+          400 hidden weights are learned. Everything on this page is a claim about that one layer.
+        </span>
+      </div>
+
+      <p class="note">
+        Datasets: MNIST (70,000 handwritten digits) and Fashion-MNIST (70,000 clothing photos, same
+        shape, harder). Both are standard public benchmarks. 60,000 train / 10,000 test, 5 random
+        seeds per condition.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 3. THE SYNAPSE (signature) ─────────────────────────── -->
+<section id="synapse">
+  <div class="wide">
+    <div class="section-head rise" style="width:var(--col); margin-inline:0;">
+      <div class="eyebrow">The synapse's-eye view</div>
+      <h2>What a synapse can physically see.</h2>
+      <p class="lede">
+        A synapse is a junction between two cells. It is a physical object, roughly a micron across,
+        and it has access to exactly three things: <strong>the cell before it</strong>,
+        <strong>the cell after it</strong>, and <strong>its own current strength</strong>.
+        Nothing else in your brain is wired to it.
+      </p>
+      <p class="lede">
+        So: pick one synapse. Black out everything it cannot read. Then ask each learning rule to
+        do its job with what's left.
+      </p>
+    </div>
+
+    <div class="scope rise">
+      <div class="scope-bar">
+        <span class="lbl">Learning rule</span>
+        <div class="seg" id="scope-seg">
+          <button data-mode="hebbian"  aria-pressed="true">Hebbian</button>
+          <button data-mode="fa"       aria-pressed="false">Feedback alignment</button>
+          <button data-mode="backprop" aria-pressed="false">Backprop</button>
+        </div>
+      </div>
+      <div class="scope-body">
+        <div class="scope-stage" id="scope-stage"></div>
+        <div class="scope-side">
+          <div class="rule-box" id="scope-math" style="margin:0"></div>
+          <div class="scope-verdict" id="scope-verdict"></div>
+          <div class="ledger" id="scope-ledger"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap rise" style="margin-top:2.5rem; margin-inline:0;">
+      <h3>The objection, in one sentence</h3>
+      <p>
+        To apply backprop's update, a synapse in the hidden layer needs the numerical values of the
+        weights in the <em>output</em> layer — weights belonging to synapses it has never touched and
+        has no wire to. This is the <strong>weight transport problem</strong>, and it is the sharpest
+        version of "backprop is not biologically plausible."
+      </p>
+      <p>
+        It is worth being precise here, because the usual slogan overshoots. People often say
+        <em>"the brain has no global error signal."</em> That's too strong — dopamine broadcasts
+        something a lot like one. What the brain plausibly lacks is narrower and more damning:
+        <strong>a per-synapse, precisely credited error</strong>, and <strong>the weight transport
+        needed to compute it</strong>.
+      </p>
+
+      <div class="finding flag">
+        Feedback alignment exists to test exactly that. Replace the copied weights
+        <span class="tk-flag">W2ᵀ</span> with a <span class="tk-mid">fixed random matrix</span> that
+        nobody ever updates — and see whether the network still learns.
+      </div>
+
+      <h3>The Hebbian layer we actually built</h3>
+      <p>
+        Plain "fire together, wire together" has a fatal flaw: it's a loop with no brake. Stronger
+        connection → the second cell fires harder → the connection strengthens more → the weights
+        run away to infinity. The rule can only ever say <em>more</em>.
+      </p>
+      <p>
+        Erkki Oja fixed this in 1982 with a trick that stays local. Grow on coincidence, but subtract
+        a little in proportion to how hard the output cell just fired:
+      </p>
+
+      <div class="rule-box">
+        <span class="rl"><span class="tk-dim">Δw</span> = <span class="tk-dim">η</span> · <span class="tk-bio">y</span> · ( <span class="tk-bio">x</span> − <span class="tk-bio">y</span> · <span class="tk-bio">w</span> )</span>
+        <span class="cap">Oja's rule. The shrink term hits every synapse on the cell; only the ones
+        that participated earn it back. Growth is now funded by a tax everybody pays — which turns
+        Hebbian learning into a <em>competition</em>. And a single neuron running this converges on
+        the first principal component of whatever it's shown, using nothing but local information.</span>
+      </div>
+
+      <p>
+        Our hidden layer is four local rules, and each one is borrowed from a different piece of
+        real neuroscience:
+      </p>
+
+      <div class="table-scroll">
+      <table class="data-table" style="margin-top:1rem">
+        <thead>
+          <tr><th>In the code</th><th>What it does</th><th>Where biology does this</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="model">settle</td>
+            <td>units inhibit each other until activity stabilises</td>
+            <td>lateral inhibition in cortex</td>
+          </tr>
+          <tr>
+            <td class="model">ΔW</td>
+            <td>Hebbian growth toward the input, Oja-renormalised</td>
+            <td>LTP · NMDA receptors as coincidence detectors</td>
+          </tr>
+          <tr>
+            <td class="model">ΔL</td>
+            <td>units that co-fire inhibit each other <em>more</em></td>
+            <td>Földiák's anti-Hebbian rule (1990)</td>
+          </tr>
+          <tr>
+            <td class="model">Δθ</td>
+            <td>each unit's threshold drifts to keep its firing rate near a target</td>
+            <td>synaptic scaling (Turrigiano)</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note" style="margin-top:1rem">
+        Every one of these uses only pre-synaptic activity, post-synaptic activity, and the synapse's
+        own state. Nothing reaches across the network. That is the entire design constraint.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 4. HISTORY ─────────────────────────── -->
+<section id="history">
+  <div class="wrap">
+    <div class="section-head rise">
+      <div class="eyebrow">1943 – 2019</div>
+      <h2>Biology gave machine learning the neuron. Then it stopped returning calls.</h2>
+      <p class="lede">
+        The artificial neuron did not begin as an engineering convenience. It began as a
+        <strong>claim about the brain</strong> — and for its first forty years, the field kept
+        checking its work against neuroscience. Then backprop arrived, worked far too well to argue
+        with, and the two fields drifted apart.
+      </p>
+    </div>
+
+    <div class="timeline rise" id="timeline"></div>
+
+    <div class="rise">
+      <p class="pullquote">
+        Hebb proposed his rule in 1949 with no experimental evidence whatsoever. The molecular
+        machinery that implements it — an NMDA receptor that only opens when the sending cell has
+        released glutamate <em>and</em> the receiving cell is already depolarised — is a literal
+        coincidence detector. A logical AND gate, built out of protein.
+        <cite>Bliss &amp; Lømo found it in 1973.</cite>
+      </p>
+      <p class="note">
+        Four of the papers on this timeline are sitting in our repository — McCulloch &amp; Pitts,
+        Rosenblatt, Hubel &amp; Wiesel, and Fukushima. Fukushima's Neocognitron is the one that
+        matters most for us: it trained its feature layers with unsupervised competition and put a
+        supervised readout on top. We did not invent that bridge. We rebuilt it.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 5. THE LADDER ─────────────────────────── -->
+<section id="ladder">
+  <div class="wide">
+    <div class="section-head rise" style="width:var(--col); margin-inline:0;">
+      <div class="eyebrow">Result 1 · the ablation ladder</div>
+      <h2>Not "who wins." Which illegal move is doing the work.</h2>
+      <p class="lede">
+        Everybody knows backprop wins. That result is worth nothing on its own. So instead we built a
+        <strong>ladder</strong>: start from a layer that cannot learn at all, and add back one piece
+        of biologically impossible machinery at a time. Then watch where the accuracy actually jumps.
+      </p>
+    </div>
+
+    <div class="panel rise" data-draw="ladder">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Test accuracy · hidden-layer learning rule</div>
+          <div class="panel-sub" id="ladder-cap"></div>
+        </div>
+        <div class="seg" id="ladder-seg">
+          <button data-set="mnist" aria-pressed="true">MNIST</button>
+          <button data-set="fashion" aria-pressed="false">Fashion-MNIST</button>
+        </div>
+      </div>
+
+      <div class="two-col split-chart">
+        <div>
+          <div class="chart-holder" id="ladder-chart"></div>
+          <p class="note" style="margin-top:0.75rem">
+            Bars are the mean of 5 seeds; whiskers are ±1 standard deviation.
+            The axis starts at 70% — the gaps are the point, and a 0–100 axis would flatten them.
+            Hover or tab through a bar to see what it costs biologically.
+          </p>
+        </div>
+        <div>
+          <div class="panel-title" id="ladder-ledger-name" style="margin-bottom:0.35rem">Hebbian</div>
+          <div class="note" id="ladder-ledger-rule" style="margin-bottom:0.9rem; min-height:3.2em"></div>
+          <div class="ledger" id="ladder-ledger"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap rise" style="margin-top:2.5rem; margin-inline:0;">
+      <p>
+        Read it from the bottom. A frozen random layer — one that <em>never learns anything</em> —
+        already gets <strong>85.66%</strong>, because 400 random projections of a digit are
+        already a decent description of it. That's the bar. Anything that can't beat it hasn't
+        learned a thing.
+      </p>
+      <p>
+        Our Hebbian layer clears it by <strong>3.4 points</strong>, consistently, across every seed.
+        That is a real result: a rule with no labels, no error signal, and no wire longer than a
+        synapse found genuine structure in raw pixels.
+      </p>
+      <p>
+        Then you add back the global, label-driven error signal — and accuracy jumps
+        <strong>~8.7 points</strong> to 97.75%.
+      </p>
+
+      <div class="finding machine">
+        Feedback alignment is the load-bearing bar. It throws away weight transport — the single most
+        biologically impossible thing backprop does — and lands close to full backprop anyway.
+        So weight transport is <em>cheap to give up</em>. The thing you are actually paying for is
+        the <span class="tk-mach">error signal computed from the correct answer</span>.
+      </div>
+
+      <p class="note">
+        That is a claim about <em>which</em> piece of implausibility matters, and it's the reason
+        this project has three models instead of two.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 6. FILTERS ─────────────────────────── -->
+<section id="filters">
+  <div class="wide">
+    <div class="section-head rise" style="width:var(--col); margin-inline:0;">
+      <div class="eyebrow">Result 1b · what the layer learned</div>
+      <h2>The less accurate model is the one you can actually read.</h2>
+      <p class="lede">
+        Every hidden unit has 784 incoming weights — one per pixel. So its weights <em>are</em> a
+        28×28 image. Draw them back out and you can see exactly what that unit decided was worth
+        noticing. This is not a metaphor; it's just the weight matrix, reshaped.
+      </p>
+    </div>
+
+    <div class="panel rise">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Hidden units, drawn as images</div>
+          <div class="panel-sub">72 of 400 · warm = pixel excites this unit · rose = pixel argues against it</div>
+        </div>
+        <div class="seg" id="filters-seg">
+          <button data-f="hebbian"  aria-pressed="true">Hebbian</button>
+          <button data-f="backprop" aria-pressed="false">Backprop</button>
+          <button data-f="random"   aria-pressed="false">Random</button>
+        </div>
+      </div>
+      <div class="filters-grid" id="filters-grid"></div>
+      <p class="note" id="filters-blurb" style="margin-top:1.25rem; max-width:75ch"></p>
+    </div>
+
+    <div class="wrap rise" style="margin-top:2.5rem; margin-inline:0;">
+      <p>
+        This is the most quietly surprising thing we found. The <strong>biologically plausible</strong>
+        model is also the <strong>interpretable</strong> one. Hebbian units converge on
+        recognisable strokes and templates. Backprop's units converge on speckle that means nothing
+        to a human — and outperform them by nearly nine points.
+      </p>
+      <p>
+        There is a number for this. Of 400 available directions, the Hebbian layer's activity
+        effectively occupies about <strong>108</strong>; the random layer's occupies about
+        <strong>347</strong>. Random noise sprays across the whole space. The Hebbian layer
+        <em>compressed</em> — which is what finding structure looks like, measured.
+      </p>
+      <p class="note">
+        Hubel and Wiesel, 1962: cells in the cat's visual cortex fire for oriented edges. Nobody
+        told those cells what an edge was. Local, unsupervised learning on real input produces
+        feature detectors — in a cat, and on our bench.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 7. WHERE IT BREAKS ─────────────────────────── -->
+<section id="breaks">
+  <div class="wide">
+    <div class="section-head rise" style="width:var(--col); margin-inline:0;">
+      <div class="eyebrow">Result 2 · the credit-assignment gap, made visible</div>
+      <h2>Then we gave it a harder job, and the whole thing collapsed.</h2>
+      <p class="lede">
+        Swap MNIST for Fashion-MNIST — same 28×28 images, same network, but photos of clothing
+        instead of digits. Flip the toggle on the chart above and watch what happens to the amber bar.
+      </p>
+    </div>
+
+    <div class="rise wrap" style="margin-inline:0;">
+      <div class="finding flag">
+        On Fashion-MNIST, the Hebbian layer scores 73.80% and the untrained random layer scores
+        74.40%. They are <em>statistically tied</em>. Every point our biologically plausible learner
+        earned on MNIST evaporated.
+      </div>
+
+      <p>
+        This is not a bug. It's the deepest result in the project, and it has an exact cause.
+      </p>
+      <p>
+        A Hebbian rule is shaped by <strong>input statistics</strong>: it tunes itself to whatever
+        pattern recurs most in what it's shown. Backprop is shaped by <strong>the task</strong>: its
+        features exist to reduce a specific error on a specific question.
+      </p>
+      <p>
+        On MNIST those two things happen to coincide. The most common recurring pixel patterns in
+        handwritten digits <em>are</em> the things that tell digits apart, because digits genuinely
+        look different from each other. So a rule that has never heard the word "seven" does fine.
+      </p>
+      <p>
+        On Fashion-MNIST they come apart. A shirt, a coat, and a pullover share nearly the same
+        silhouette. The most common recurring pattern is <em>the silhouette</em> — which is precisely
+        the information that does not separate the classes. So the Hebbian layer dutifully learns
+        the same generic garment blob over and over, and hands the readout 400 near-duplicate
+        features. You can see it directly in the learned filters: on MNIST every unit is a distinct
+        stroke; on Fashion-MNIST they collapse into a handful of shared shapes.
+      </p>
+
+      <div class="finding">
+        Features shaped by the <span class="tk-bio">input</span> versus features shaped by the
+        <span class="tk-mach">task</span>. That is the credit-assignment problem, and this is what it
+        costs you — not in theory, in points.
+      </div>
+
+      <h3 style="margin-top:2.75rem">A second bill, that nobody mentions</h3>
+      <p>
+        There's a knob on the Hebbian layer that sets how many units are allowed to fire at once —
+        its sparsity. We tuned it. It helped on MNIST and <strong>hurt on Fashion-MNIST</strong>.
+      </p>
+    </div>
+
+    <div class="two-col rise" style="align-items:center; gap:2rem; margin-top:1.5rem;" data-draw="tuning">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Same tuning, opposite signs</div>
+          <div class="panel-sub">target rate 0.08 → 0.20</div>
+        </div>
+        <div class="chart-holder" id="tuning-chart"></div>
+      </div>
+      <div>
+        <p>
+          There is no universal right answer for that knob — the correct sparsity is
+          <strong>task-dependent</strong>. And a Hebbian layer has no way to find it, because it has
+          no task signal to learn from. A human has to guess, per dataset.
+        </p>
+        <p>
+          Backprop's gradient just… handles this. It adapts to whatever the task needs, automatically,
+          because that is literally what a gradient is.
+        </p>
+        <p class="note">
+          So biological plausibility costs you twice: once in accuracy, and once again in
+          hand-tuning that the gradient would have done for you.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 8. FORGETTING ─────────────────────────── -->
+<section id="forget">
+  <div class="wide">
+    <div class="section-head rise" style="width:var(--col); margin-inline:0;">
+      <div class="eyebrow">Result 3 · the one where we were wrong</div>
+      <h2>We predicted the brain-like model would forget less. It doesn't.</h2>
+      <p class="lede">
+        Neural networks have a notorious failure mode: teach one a new thing and it obliterates the
+        old thing. It's called <strong>catastrophic forgetting</strong>, and humans obviously don't
+        do it. We thought a local, sparse, brain-like rule might resist it. So we ran the test.
+      </p>
+      <p class="lede">
+        <strong>Split-MNIST:</strong> train on digits 0–4. Then train on 5–9. Then go back and ask
+        about 0–4.
+      </p>
+    </div>
+
+    <div class="panel rise" data-draw="forgetting">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Accuracy on digits 0–4, before and after learning 5–9</div>
+          <div class="panel-sub">Split-MNIST · 2 seeds · hover a bar for its value</div>
+        </div>
+      </div>
+      <div class="chart-holder" id="forget-chart"></div>
+      <div class="chart-legend">
+        <span><i style="background:var(--machine);opacity:0.32"></i> before — what it knew</span>
+        <span><i style="background:var(--flag)"></i> after — what it can still do</span>
+        <span><i style="background:var(--machine)"></i> after, with a fresh readout — what it still <em>knows</em></span>
+      </div>
+    </div>
+
+    <div class="wrap rise" style="margin-top:2.5rem; margin-inline:0;">
+      <p>
+        Everything forgets. Backprop drops from 98.93% to <strong>0.63%</strong>. Hebbian drops from
+        97.57% to <strong>1.90%</strong> — very slightly better, and nowhere near enough to matter.
+      </p>
+      <p>
+        We had a hypothesis for why Hebbian might hold up: <strong>sparsity</strong>. If old digits and
+        new digits light up mostly different neurons, they can't overwrite each other. So we ran
+        sparse and dense versions of both models to separate "the learning rule" from "the sparsity."
+        Sparsity helped backprop noticeably (it lost 94.55 points instead of 98.30) and
+        <em>barely moved</em> Hebbian. So sparsity isn't the explanation either.
+      </p>
+      <p>
+        Then the control gave us the actual answer. The <strong>random</strong> layer — frozen,
+        never trained, structurally incapable of learning or forgetting anything — still "forgot"
+        92.73 points.
+      </p>
+
+      <div class="finding flag">
+        A layer that cannot learn cannot forget. So the forgetting was never happening in the hidden
+        layer at all. It was happening in the <em>readout</em> — the tiny classifier on top, quietly
+        redrawing its decision boundary after seeing nothing but 5s through 9s for a while.
+      </div>
+
+      <p>
+        The proof is the third bar. Retrain <em>only</em> the readout on the same, drifted features,
+        and accuracy on 0–4 snaps straight back to 96–98% in every single condition. The
+        representations were never destroyed. They were sitting there the whole time. Nobody was
+        listening to them.
+      </p>
+      <p class="note">
+        This is our favourite result and it is a <em>negative</em> one. Our hypothesis was wrong, the
+        control we almost didn't bother running is what caught it, and the honest conclusion is that
+        neither locality nor sparsity buys you protection from forgetting. What actually would,
+        according to Complementary Learning Systems theory, is <strong>replay</strong> — the
+        hippocampus rehearsing old memories to the cortex while you sleep. We didn't build that.
+        Somebody should.
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── 9. SO WHAT ─────────────────────────── -->
+<section id="sowhat">
+  <div class="wrap">
+    <div class="section-head rise">
+      <div class="eyebrow">So what</div>
+      <h2>Neither thing on our bench is a brain.</h2>
+    </div>
+
+    <div class="rise">
+      <p>
+        It would be easy to end with "backprop wins, but it's not biological." That's the version of
+        this project we were trying not to write, because it's the least interesting true thing you
+        can say. Here is what we'd actually defend:
+      </p>
+
+      <p>
+        <strong>Backprop is implausible in specific, nameable ways</strong> — and we now know which
+        one is expensive. Weight transport, the most flagrant violation, turns out to be nearly free
+        to remove. What you cannot remove cheaply is the error signal that comes from knowing the
+        right answer.
+      </p>
+
+      <p>
+        <strong>Our Hebbian model is not the brain either.</strong> It's a two-term update rule.
+        Real synapses are Hebbian-ish machinery wrapped in a great deal of stabilising and gating
+        apparatus we threw away — spike timing (STDP), neuromodulators like dopamine deciding whether
+        a moment was even worth learning from, and homeostasis on timescales of hours. What's
+        biologically real isn't Oja's formula. It's the <strong>constraint</strong> Oja's formula
+        respects: <em>grow on coincidence, stay bounded, and use only what you can reach.</em>
+      </p>
+
+      <p>
+        <strong>And the gap we measured is not a law of nature.</strong> Krotov and Hopfield (2019)
+        get a Hebbian rule with stronger competition far closer to backprop on MNIST than we did. Our
+        8.7 points is a measurement of <em>our</em> rule, not a ceiling on local learning.
+      </p>
+
+      <h3 style="margin-top:2.5rem">Where the field is actually going</h3>
+      <p>
+        The interesting move isn't picking a side — it's dissolving the question. <strong>Predictive
+        coding</strong> (Rao &amp; Ballard 1999) proposes that cortex is constantly predicting its own
+        input and learning from what it got wrong. Whittington and Bogacz showed in 2017 that a
+        predictive coding network, using nothing but <em>local</em> Hebbian plasticity, can
+        <em>approximate backprop</em>.
+      </p>
+      <p>
+        Which is a strange and wonderful idea: Hebbian hardware, doing backprop's job. And it's
+        already hiding in Oja's rule. Rewrite it as
+        <span style="font-family:var(--mono); font-size:0.9em">Δwᵢ ∝ y · (xᵢ − ŷᵢ)</span>, where
+        <span style="font-family:var(--mono); font-size:0.9em">ŷᵢ = y·wᵢ</span> is the neuron's
+        attempt to reconstruct its own input, and Oja's rule <em>is</em> Hebbian learning on the
+        prediction error. The bridge was in the 1982 paper the whole time.
+      </p>
+
+      <div class="finding">
+        Your brain runs on about <strong>20 watts</strong> — a dim lightbulb. It learns continuously,
+        from few examples, without a teacher, and it does not need a wire that reaches from your
+        motor cortex back into your retina. That is the machine we are actually trying to explain.
+      </div>
+
+      <h3 style="margin-top:2.5rem">What we'd fix</h3>
+      <ul style="color:var(--ink-dim); line-height:1.6; padding-left:1.1rem;">
+        <li style="margin-bottom:0.6rem">
+          <strong>The lateral inhibition barely does anything.</strong> We implemented Földiák's
+          anti-Hebbian rule correctly, but scaling its learning rate 5–25× changed no result — the
+          lateral weights stayed near zero throughout. The two things that actually made the Hebbian
+          layer work were the homeostatic threshold ramp and scaling each update by the unit's own
+          confidence. We are not going to claim lateral inhibition is why this works, because the
+          evidence says it isn't.
+        </li>
+        <li style="margin-bottom:0.6rem">
+          <strong>Seed counts are modest</strong> — 2 to 5, on CPU. Fine for a class project, not a
+          paper.
+        </li>
+        <li style="margin-bottom:0.6rem">
+          <strong>STDP and neuromodulation are out of scope</strong>, deliberately. Our images have no
+          time dimension, so spike timing has nothing to bite on; and a reward signal would smuggle
+          supervision back into the one layer that's supposed to be label-free.
+        </li>
+        <li>
+          <strong>Next:</strong> implement Krotov &amp; Hopfield's rule to see how much of the gap is
+          really ours, and add replay to the forgetting experiment to test the one mechanism that
+          might actually work.
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────── REFERENCES ─────────────────────────── -->
+<section id="refs-sec">
+  <div class="wrap">
+    <div class="section-head rise">
+      <div class="eyebrow">References &amp; code</div>
+      <h2>Sources.</h2>
+    </div>
+    <div class="refs rise" id="refs"></div>
+
+    <div class="panel rise" style="margin-top:2.5rem">
+      <div class="panel-title" style="margin-bottom:0.9rem">The code</div>
+      <p class="note" style="margin-bottom:1rem">
+        Everything on this page is reproducible from the repository. All models share
+        <code>models/common.py</code>, so a fix to the Hebbian rule applies everywhere at once.
+      </p>
+      <div class="table-scroll">
+      <table class="data-table">
+        <tbody>
+          <tr><td class="model">models/backprop.py</td><td>the baseline MLP, 784→400→10</td></tr>
+          <tr><td class="model">models/hebbian.py</td><td>the local, label-free hidden layer + linear readout</td></tr>
+          <tr><td class="model">models/feedback_alignment.py</td><td>backprop with the backward weights replaced by a fixed random matrix</td></tr>
+          <tr><td class="model">models/compare_and_visualize_v2.py</td><td>the main comparison: accuracy, confusion, filters, misclassifications</td></tr>
+          <tr><td class="model">models/catastrophic_forgetting.py</td><td>Split-MNIST, with the sparsity control and the fresh-readout probe</td></tr>
+          <tr><td class="model">models/multi_seed_variability.py</td><td>5-seed sweep — how much can one number be trusted?</td></tr>
+          <tr><td class="model">models/fashion_mnist_variability.py</td><td>the same sweep on the harder dataset</td></tr>
+          <tr><td class="model">models/export_web_assets.py</td><td>writes the weights this page runs in your browser</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wide foot-inner">
+    <span>Carnegie Mellon Pre-College · Computational Biology · Final project</span>
+    <span>Topic 6 — What is a neural network, and how has biology informed its construction?</span>
+  </div>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/net.js"></script>
+<script src="js/synapse.js"></script>
+<script src="js/filters.js"></script>
+<script src="js/digit.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
