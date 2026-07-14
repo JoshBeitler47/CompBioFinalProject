@@ -7,8 +7,6 @@
    Nothing here is estimated, smoothed, or invented. If you
    re-run an experiment and get a new number, change it HERE
    and the whole site updates.
-
-   >>> ONE VALUE IS MISSING. See FEEDBACK_ALIGNMENT below. <<<
    ============================================================ */
 
 const PALETTE = {
@@ -20,23 +18,6 @@ const PALETTE = {
   ink:      "#E9F0F2",
   dim:      "#93A6AD",
   mute:     "#61757D",
-};
-
-/* ------------------------------------------------------------
-   >>> ACTION REQUIRED <<<
-
-   models/feedback_alignment.py prints its accuracy but never
-   saved a figure, so the number never made it into the notes.
-   Run it, then put the test accuracy here (as a number, e.g.
-   97.1) and delete the `pending` flag. Everything on the page
-   that mentions feedback alignment will fill itself in.
-
-   Until then the site renders it honestly as an un-run bar
-   rather than guessing.
-   ------------------------------------------------------------ */
-const FEEDBACK_ALIGNMENT = {
-  mnist:   { mean: 89.18, std: 0 },
-  fashion: { mean: null, std: null, pending: true },
 };
 
 /* ---------- the ladder: hidden-layer learning rule vs. accuracy ---------- */
@@ -54,9 +35,6 @@ const LADDER = {
         rule: "hidden layer frozen at its random init — never learns at all" },
       { key: "hebbian",  name: "Hebbian",            mean: 89.03, std: 0.50, color: PALETTE.hebbian,
         rule: "local, label-free: anti-Hebbian lateral inhibition + homeostatic thresholds" },
-      { key: "fa",       name: "Feedback alignment", mean: FEEDBACK_ALIGNMENT.mnist.mean,
-        std: FEEDBACK_ALIGNMENT.mnist.std, pending: FEEDBACK_ALIGNMENT.mnist.pending, color: PALETTE.fa,
-        rule: "gradient descent, but the error is routed back through a FIXED RANDOM matrix" },
       { key: "backprop", name: "Backprop",           mean: 97.75, std: 0.05, color: PALETTE.backprop,
         rule: "textbook gradient descent — the error is routed back through W2ᵀ" },
     ],
@@ -69,9 +47,6 @@ const LADDER = {
         rule: "hidden layer frozen at its random init — never learns at all" },
       { key: "hebbian",  name: "Hebbian",            mean: 73.80, std: 0.93, color: PALETTE.hebbian,
         rule: "local, label-free: anti-Hebbian lateral inhibition + homeostatic thresholds" },
-      { key: "fa",       name: "Feedback alignment", mean: FEEDBACK_ALIGNMENT.fashion.mean,
-        std: FEEDBACK_ALIGNMENT.fashion.std, pending: FEEDBACK_ALIGNMENT.fashion.pending, color: PALETTE.fa,
-        rule: "gradient descent, but the error is routed back through a FIXED RANDOM matrix" },
       { key: "backprop", name: "Backprop",           mean: 88.42, std: 0.15, color: PALETTE.backprop,
         rule: "textbook gradient descent — the error is routed back through W2ᵀ" },
     ],
@@ -95,19 +70,6 @@ const LEDGER = {
       { k: "Needs no labels",       v: "YES", ok: "yes" },
       { k: "No weight transport",   v: "YES", ok: "yes" },
       { k: "No separate backward pass", v: "YES", ok: "yes" },
-    ],
-  },
-  fa: {
-    name: "Feedback alignment",
-    color: PALETTE.fa,
-    verdict: "part",
-    headline: "One illegal move removed. Three left.",
-    detail: "The error still arrives from far away, and the network still has to know the right answer. But the backward path is now a fixed random matrix — no synapse has to read another synapse's weight.",
-    rows: [
-      { k: "Local update only",     v: "NO",  ok: "no"  },
-      { k: "Needs no labels",       v: "NO",  ok: "no"  },
-      { k: "No weight transport",   v: "YES", ok: "yes" },
-      { k: "No separate backward pass", v: "NO", ok: "no" },
     ],
   },
   backprop: {

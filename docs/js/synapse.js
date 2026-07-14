@@ -26,10 +26,6 @@ const RULES = {
     line: '<span class="tk-dim">Δw</span> = <span class="tk-dim">η</span> · <span class="tk-bio">x</span> · [ ( <span class="tk-mach">δ</span> <span class="tk-flag">W2ᵀ</span> ) ⊙ <span class="tk-bio">f′(a)</span> ]',
     needs: 'Needs <span class="tk-bio">x</span> and <span class="tk-bio">a</span> locally — fine. But it also needs <span class="tk-mach">δ</span>, an error computed at the far end of the network from the <em>correct label</em>, routed back through <span class="tk-flag">W2ᵀ</span>: the numerical values of 4,000 output weights this synapse has never touched.',
   },
-  fa: {
-    line: '<span class="tk-dim">Δw</span> = <span class="tk-dim">η</span> · <span class="tk-bio">x</span> · [ ( <span class="tk-mach">δ</span> <span class="tk-mid">B</span> ) ⊙ <span class="tk-bio">f′(a)</span> ]',
-    needs: '<span class="tk-mid">B</span> is a random matrix, fixed at initialisation and <em>never updated</em>. Nothing is copied from anywhere. Lillicrap et al. showed this still trains — the forward weights simply learn to <em>align themselves</em> with the random feedback.',
-  },
 };
 
 function buildScope(mount) {
@@ -200,16 +196,6 @@ function buildScope(mount) {
     return g;
   });
   svg.appendChild(bp);
-
-  /* --- FEEDBACK ALIGNMENT: no copy at all --- */
-  const fa = buildBack("fa-only", "box-fa", "B", "RANDOM · FIXED", () => {
-    const g = el("g");
-    g.appendChild(el("text", {
-      x: 300, y: 344, "text-anchor": "middle", class: "mid-lab",
-    }, "✓ NOTHING IS COPIED — AND IT STILL LEARNS"));
-    return g;
-  });
-  svg.appendChild(fa);
 
   mount.appendChild(svg);
   return svg;

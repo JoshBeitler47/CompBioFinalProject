@@ -221,7 +221,6 @@
         <span class="lbl">Learning rule</span>
         <div class="seg" id="scope-seg">
           <button data-mode="hebbian"  aria-pressed="true">Hebbian</button>
-          <button data-mode="fa"       aria-pressed="false">Feedback alignment</button>
           <button data-mode="backprop" aria-pressed="false">Backprop</button>
         </div>
       </div>
@@ -252,10 +251,16 @@
       </p>
 
       <div class="finding flag">
-        Feedback alignment exists to test exactly that. Replace the copied weights
-        <span class="tk-flag">W2ᵀ</span> with a <span class="tk-mid">fixed random matrix</span> that
-        nobody ever updates — and see whether the network still learns.
+        A synapse in the hidden layer would have to read the values of 4,000 weights it has never
+        touched. There is no wire in the brain that carries them.
       </div>
+
+      <p class="note">
+        Is that copied wire really the expensive part? Lillicrap et al. (2016) replaced it with a
+        fixed random matrix that nobody ever updates — and the network still learned. So weight
+        transport, the most flagrant violation backprop commits, turns out to be the cheap one to
+        give up. What you cannot give up cheaply is the label.
+      </p>
 
       <h3>The Hebbian layer we actually built</h3>
       <p>
@@ -414,15 +419,16 @@
       </p>
 
       <div class="finding machine">
-        Feedback alignment is the load-bearing bar. It throws away weight transport — the single most
-        biologically impossible thing backprop does — and lands close to full backprop anyway.
-        So weight transport is <em>cheap to give up</em>. The thing you are actually paying for is
-        the <span class="tk-mach">error signal computed from the correct answer</span>.
+        A local, label-free rule beats a layer that never learns — by 3.4 points, on every seed.
+        Then handing the network <span class="tk-mach">the right answer</span> is worth another 8.7.
+        That second number is the price of the credit-assignment problem, and it is the thing biology
+        still has to explain.
       </div>
 
       <p class="note">
-        That is a claim about <em>which</em> piece of implausibility matters, and it's the reason
-        this project has three models instead of two.
+        The random control is why the middle bar means anything at all. Without it, 89% is just a
+        number — you would have no idea whether the Hebbian rule found real structure, or whether any
+        400 random directions would have done just as well.
       </p>
     </div>
   </div>
@@ -654,10 +660,11 @@
       </p>
 
       <p>
-        <strong>Backprop is implausible in specific, nameable ways</strong> — and we now know which
-        one is expensive. Weight transport, the most flagrant violation, turns out to be nearly free
-        to remove. What you cannot remove cheaply is the error signal that comes from knowing the
-        right answer.
+        <strong>Backprop is implausible in specific, nameable ways</strong> — and they are not all
+        equally expensive. Lillicrap et al. showed that weight transport, the most flagrant violation,
+        can be thrown out almost for free. What nobody has removed cheaply is the error signal that
+        comes from knowing the right answer — and our 8.7-point gap is a measurement of exactly what
+        that signal is worth.
       </p>
 
       <p>
@@ -748,7 +755,6 @@
         <tbody>
           <tr><td class="model">models/backprop.py</td><td>the baseline MLP, 784→400→10</td></tr>
           <tr><td class="model">models/hebbian.py</td><td>the local, label-free hidden layer + linear readout</td></tr>
-          <tr><td class="model">models/feedback_alignment.py</td><td>backprop with the backward weights replaced by a fixed random matrix</td></tr>
           <tr><td class="model">models/compare_and_visualize_v2.py</td><td>the main comparison: accuracy, confusion, filters, misclassifications</td></tr>
           <tr><td class="model">models/catastrophic_forgetting.py</td><td>Split-MNIST, with the sparsity control and the fresh-readout probe</td></tr>
           <tr><td class="model">models/multi_seed_variability.py</td><td>5-seed sweep — how much can one number be trusted?</td></tr>
