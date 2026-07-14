@@ -511,9 +511,12 @@ def run_seed_variability_experiment(
     ax.set_xticklabels([c.replace("\n", " ") for c in conditions])
     ax.set_ylabel("Test accuracy (%)")
     ax.set_title(title)
-    ax.legend(loc="lower right", frameon=True)
+    # Below the axes, not inside the plot -- an in-plot corner can land on top
+    # of a condition's dots/diamond depending on where that condition's
+    # accuracy happens to fall, which it did here.
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=True)
     plt.tight_layout()
-    plt.savefig(f"output/{output_name}", dpi=150)
+    plt.savefig(f"output/{output_name}", dpi=150, bbox_inches="tight")
     plt.close()
     print(f"\nSaved: output/{output_name}")
 
