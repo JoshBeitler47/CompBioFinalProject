@@ -197,16 +197,36 @@
         So we do what Fukushima did in 1980, and what the field still does: let the Hebbian rule
         learn <em>features</em>, then bolt a small supervised classifier on top of those features.
         To keep it fair, <strong>every model on the bench gets the same bolt-on classifier</strong> —
-        one linear readout, trained with labels, identical in all four cases.
+        one linear readout, trained with labels, identical in all three.
       </p>
 
       <div class="rule-box">
         <span class="rl"><span class="tk-dim">input</span> 784 &nbsp;───▶&nbsp; <span class="tk-bio">hidden</span> 400 &nbsp;───▶&nbsp; <span class="tk-dim">readout</span> 10</span>
         <span class="cap">
-          The readout is supervised in all four models. The <em>only</em> thing we vary is how the
+          The readout is supervised in all three models. The <em>only</em> thing we vary is how the
           400 hidden weights are learned. Everything on this page is a claim about that one layer.
         </span>
       </div>
+
+      <h3 style="margin-top:2.5rem">And a third model, which is the one people misread</h3>
+      <p>
+        There's a control on the bench called <strong>Random</strong>, and the name is misleading
+        enough that it's worth a paragraph. It is <em>not</em> a model that guesses at random — if it
+        were, it would score 10%, not 85.66%.
+      </p>
+      <p>
+        What's random is only the <strong>hidden layer</strong>. Its 400 weights are set once, at
+        initialisation, from a random distribution, and then <strong>frozen forever</strong>. They never
+        learn anything. But the readout bolted on top is trained with labels, exactly like every other
+        model here — because that's the rule of the bench.
+      </p>
+      <p>
+        So Random is asking a specific and rather uncomfortable question: <em>how much of the Hebbian
+        layer's performance is actually due to Hebbian learning, and how much would you have got from
+        400 arbitrary directions and a decent classifier?</em> It turns out 400 random projections of a
+        digit already describe it surprisingly well. Any model that can't beat this bar hasn't learned
+        anything — it has just been carried by its readout.
+      </p>
 
       <p class="note">
         Datasets: MNIST (70,000 handwritten digits) and Fashion-MNIST (70,000 clothing photos, same

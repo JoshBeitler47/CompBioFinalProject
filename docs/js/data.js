@@ -22,7 +22,7 @@ const PALETTE = {
 
 /* ---------- the ladder: hidden-layer learning rule vs. accuracy ---------- */
 /* MNIST + Fashion-MNIST, from the 5-seed sweeps (multi_seed_variability.py,
-   fashion_mnist_variability.py). All four models share the same
+   fashion_mnist_variability.py). All three models share the same
    784 -> 400 -> 10 architecture and the same supervised linear readout;
    the ONLY thing that differs is how the hidden layer's weights are learned. */
 
@@ -32,7 +32,7 @@ const LADDER = {
     caption: "handwritten digits · 5 seeds · 60k train / 10k test",
     rows: [
       { key: "random",   name: "Random",             mean: 85.66, std: 0.32, color: PALETTE.random,
-        rule: "hidden layer frozen at its random init — never learns at all" },
+        rule: "hidden layer frozen at its random init — never learns; only the readout is trained" },
       { key: "hebbian",  name: "Hebbian",            mean: 89.03, std: 0.50, color: PALETTE.hebbian,
         rule: "local, label-free: anti-Hebbian lateral inhibition + homeostatic thresholds" },
       { key: "backprop", name: "Backprop",           mean: 97.75, std: 0.05, color: PALETTE.backprop,
@@ -44,7 +44,7 @@ const LADDER = {
     caption: "clothing photos · 5 seeds · 60k train / 10k test",
     rows: [
       { key: "random",   name: "Random",             mean: 74.40, std: 0.37, color: PALETTE.random,
-        rule: "hidden layer frozen at its random init — never learns at all" },
+        rule: "hidden layer frozen at its random init — never learns; only the readout is trained" },
       { key: "hebbian",  name: "Hebbian",            mean: 73.80, std: 0.93, color: PALETTE.hebbian,
         rule: "local, label-free: anti-Hebbian lateral inhibition + homeostatic thresholds" },
       { key: "backprop", name: "Backprop",           mean: 88.42, std: 0.15, color: PALETTE.backprop,
@@ -55,7 +55,7 @@ const LADDER = {
 
 /* ---------- the biological-plausibility ledger ----------
    Applies to how the HIDDEN LAYER's weights are learned.
-   The linear readout on top is supervised in all four models —
+   The linear readout on top is supervised in all three models —
    that's the bridge, and we say so out loud on the page. */
 
 const LEDGER = {
