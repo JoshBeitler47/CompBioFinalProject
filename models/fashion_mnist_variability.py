@@ -1,7 +1,7 @@
 """
 fashion_mnist_variability.py
 -----------------------------
-Same 4-condition, multi-seed comparison as multi_seed_variability.py, but on
+Same 3-condition, multi-seed comparison as multi_seed_variability.py, but on
 Fashion-MNIST instead of MNIST.
 
 History: an earlier version of the Hebbian hidden layer (winner-take-all

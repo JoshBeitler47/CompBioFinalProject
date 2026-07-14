@@ -254,25 +254,32 @@ print("using a FRESH classifier -- independent of readout collapse:")
 for c in CONDITIONS:
     print(f"  {c:16s}: {np.mean(probe_records[c]):.2f}%")
 
-# ---- Figure 1: before/after bars for all 5 conditions ----
-labels = ["Backprop", "Backprop\n(sparse)", "Hebbian", "Hebbian\n(sparse)", "Random"]
-before = [means[c][0] for c in CONDITIONS]
-after = [means[c][1] for c in CONDITIONS]
+# ---- Figures: dense conditions only (Backprop, Hebbian, Random) ----
+# The sparse variants exist above to separate "the learning rule" from
+# "representation sparsity" (see module docstring) and are still printed to
+# the console, but a 5-bar-group chart is busy for what these two figures are
+# actually trying to show, so only the dense conditions get plotted.
+PLOT_CONDITIONS = ["backprop", "hebbian", "random"]
+plot_labels = ["Backprop", "Hebbian", "Random"]
 
-x = np.arange(len(CONDITIONS))
+# ---- Figure 1: before/after bars ----
+before = [means[c][0] for c in PLOT_CONDITIONS]
+after = [means[c][1] for c in PLOT_CONDITIONS]
+
+x = np.arange(len(PLOT_CONDITIONS))
 width = 0.35
 plt.figure(figsize=(9, 5))
 plt.bar(x - width / 2, before, width, label="Before learning Task B (digits 5-9)", color="#4C72B0")
 plt.bar(x + width / 2, after, width, label="After learning Task B (digits 5-9)", color="#C44E52")
-plt.xticks(x, labels)
+plt.xticks(x, plot_labels)
 plt.ylabel("Test accuracy on Task A (digits 0-4), %")
 plt.ylim(0, 100)
 plt.title(
-    f"Catastrophic forgetting: rule vs. sparsity\n(mean over {len(SEEDS)} seeds)"
+    f"Catastrophic forgetting: Backprop vs. Hebbian vs. Random\n(mean over {len(SEEDS)} seeds)"
 )
-plt.legend()
+plt.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=True)
 plt.tight_layout()
-plt.savefig("output/catastrophic_forgetting.png", dpi=150)
+plt.savefig("output/catastrophic_forgetting.png", dpi=150, bbox_inches="tight")
 plt.close()
 
 # ---- Figure 2: readout forgetting vs. representation forgetting ----
@@ -286,9 +293,9 @@ plt.close()
 # the features still contain the information -- the deployed readout simply
 # forgot how to read it out, which is a different (and much less alarming)
 # failure than the representation itself being destroyed.
-probe_means = [np.mean(probe_records[c]) for c in CONDITIONS]
+probe_means = [np.mean(probe_records[c]) for c in PLOT_CONDITIONS]
 
-x = np.arange(len(CONDITIONS))
+x = np.arange(len(PLOT_CONDITIONS))
 width = 0.27
 plt.figure(figsize=(9.5, 5))
 plt.bar(x - width, before, width, label="Before learning Task B (deployed readout)", color="#4C72B0")
@@ -297,16 +304,16 @@ plt.bar(
     x + width, probe_means, width,
     label="After learning Task B (FRESH probe, same features)", color="#55A868",
 )
-plt.xticks(x, labels)
+plt.xticks(x, plot_labels)
 plt.ylabel("Test accuracy on Task A (digits 0-4), %")
 plt.ylim(0, 100)
 plt.title(
     "Did the FEATURES forget, or just the readout?\n"
     f"(mean over {len(SEEDS)} seeds)"
 )
-plt.legend(loc="lower left", fontsize=8.5)
+plt.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2, fontsize=8.5, frameon=True)
 plt.tight_layout()
-plt.savefig("output/catastrophic_forgetting_probe.png", dpi=150)
+plt.savefig("output/catastrophic_forgetting_probe.png", dpi=150, bbox_inches="tight")
 plt.close()
 
 print("\nSaved: output/catastrophic_forgetting.png, output/catastrophic_forgetting_probe.png")

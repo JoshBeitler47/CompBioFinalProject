@@ -428,9 +428,9 @@ def eval_acc(predict_fn, X, y):
 
 
 # ---------------------------------------------------------------------------
-# The 4-condition (Backprop / Hebbian / Hebbian-tuned / Random) seed-variability
-# sweep. multi_seed_variability.py and fashion_mnist_variability.py are the
-# SAME experiment on two datasets -- this is that shared logic, parameterized
+# The 3-condition (Backprop / Hebbian / Random) seed-variability sweep.
+# multi_seed_variability.py and fashion_mnist_variability.py are the SAME
+# experiment on two datasets -- this is that shared logic, parameterized
 # by dataset class and output filename, so a change to the experiment only
 # needs to be made once.
 # ---------------------------------------------------------------------------
@@ -442,8 +442,6 @@ def run_seed_variability_experiment(
     width=400,
     backprop_epochs=8,
     readout_epochs=100,
-    tuned_target_rate=0.20,
-    tuned_threshold_lr=0.15,
 ):
     os.makedirs("output", exist_ok=True)
     X_train, y_train, X_test, y_test, _raw_test, _mean = load_dataset(dataset_cls)
@@ -451,7 +449,6 @@ def run_seed_variability_experiment(
     conditions = [
         "Backprop\n(end-to-end)",
         "Hebbian\n+ readout",
-        "Hebbian (tuned)\n+ readout",
         "Random\n+ readout",
     ]
     results = {c: [] for c in conditions}
@@ -473,31 +470,13 @@ def run_seed_variability_experiment(
         print(f"  Hebbian (baseline): {acc:.2f}%")
         results[conditions[1]].append(acc)
 
-        # "Tuned" = same lateral-inhibition rule, higher target_rate (more units
-        # allowed active per input -- more information reaches the readout) and
-        # a gentler threshold_lr. Verified empirically to beat the baseline by
-        # ~1 point, consistently across seeds; unlike the pre-lateral-inhibition
-        # version of this experiment, more epochs / a faster-annealed learning
-        # rate do NOT help this rule -- it already converges in a few epochs,
-        # and training longer just lets a little redundancy creep back in.
-        Wh_t = hebbian_W1(
-            X_train, width, epochs=3, seed=seed,
-            target_rate=tuned_target_rate, threshold_lr=tuned_threshold_lr,
-        )
-        ro_t = build_readout(width, seed=seed)
-        H_t = hebbian_features(X_train, Wh_t)
-        ro_t, _ = train_readout(ro_t, H_t, y_train, epochs=readout_epochs)
-        acc = eval_acc(lambda X: ro_t(hebbian_features(X, Wh_t)), X_test, y_test)
-        print(f"  Hebbian (tuned):    {acc:.2f}%")
-        results[conditions[2]].append(acc)
-
         Wr = random_W1(width, seed=seed)
         ro_r = build_readout(width, seed=seed)
         H_r = hebbian_features(X_train, Wr)
         ro_r, _ = train_readout(ro_r, H_r, y_train, epochs=readout_epochs)
         acc = eval_acc(lambda X: ro_r(hebbian_features(X, Wr)), X_test, y_test)
         print(f"  Random:             {acc:.2f}%")
-        results[conditions[3]].append(acc)
+        results[conditions[2]].append(acc)
 
     print(f"\n=== Summary across {num_seeds} seeds ===")
     stats = {}
@@ -509,7 +488,7 @@ def run_seed_variability_experiment(
             f"(runs: {[round(v, 1) for v in results[c]]})"
         )
 
-    colors = ["#4C72B0", "#55A868", "#8172B2", "#C44E52"]
+    colors = ["#4C72B0", "#55A868", "#C44E52"]
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
     for i, c in enumerate(conditions):
         jitter = torch.linspace(-0.08, 0.08, num_seeds).tolist()
