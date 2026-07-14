@@ -17,6 +17,12 @@ let drawing = false;
 let inked = false;
 let lastPt = null;
 
+const TRUTH_DEFAULT = "draw a digit from 0–9";
+function setTruth(t) {
+  const el = document.getElementById("pad-truth");
+  if (el) el.textContent = t;
+}
+
 function padSetup() {
   const pad = document.getElementById("pad");
   if (!pad) return;
@@ -34,7 +40,7 @@ function padSetup() {
     ];
   };
 
-  const start = (e) => { e.preventDefault(); drawing = true; lastPt = pos(e); dot(lastPt); };
+  const start = (e) => { e.preventDefault(); drawing = true; lastPt = pos(e); dot(lastPt); setTruth(TRUTH_DEFAULT); };
   const move  = (e) => {
     if (!drawing) return;
     e.preventDefault();
@@ -53,6 +59,7 @@ function padSetup() {
   document.getElementById("pad-clear").addEventListener("click", () => {
     padClear();
     render(null);
+    setTruth(TRUTH_DEFAULT);
   });
   document.getElementById("pad-example").addEventListener("click", drawRandomExample);
 }
@@ -169,12 +176,14 @@ function render(res) {
     const row = document.querySelector(`.verdict[data-m="${k}"]`);
     if (!row) return;
     const guess = row.querySelector(".guess");
+    const conf = row.querySelector(".conf");
     const bars = row.querySelectorAll(".bars10 i");
     const hid = row.querySelectorAll(".hidden-strip i");
 
     if (!res) {
       guess.textContent = "–";
       guess.classList.add("none");
+      conf.textContent = "";
       bars.forEach((b) => { b.style.height = "1px"; b.classList.remove("top"); });
       hid.forEach((h) => { h.style.opacity = 0.12; });
       return;
@@ -185,10 +194,12 @@ function render(res) {
     for (let i = 1; i < 10; i++) if (p[i] > p[best]) best = i;
     guess.textContent = best;
     guess.classList.remove("none");
+    conf.textContent = (p[best] * 100).toFixed(0) + "%";
 
     bars.forEach((b, i) => {
       b.style.height = Math.max(1, p[i] * 34) + "px";
       b.classList.toggle("top", i === best);
+      b.title = `${i}: ${(p[i] * 100).toFixed(1)}%`;
     });
 
     /* the hidden layer, coarse-grained: 400 units -> 40 blocks */
@@ -225,8 +236,7 @@ function drawRandomExample() {
   padCtx.drawImage(tmp, 0, 0, PAD_N, PAD_N);
   inked = true;
 
-  const truth = document.getElementById("pad-truth");
-  if (truth) truth.textContent = "actually a " + e.y;
+  setTruth("actually a " + e.y);
   classify();
 }
 

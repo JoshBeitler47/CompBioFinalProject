@@ -85,10 +85,16 @@
           <div class="verdicts">
             <div class="verdict" data-m="backprop" style="--c:var(--machine)">
               <div class="who">Backprop<small>gradient descent</small></div>
-              <div class="guess none">–</div>
+              <div class="guess-cell">
+                <div class="guess none">–</div>
+                <div class="conf"></div>
+              </div>
               <div>
                 <div class="bars10">
                   <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <div class="bar-axis">
+                  <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
                 </div>
                 <div class="hidden-strip">
                   <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
@@ -101,10 +107,16 @@
 
             <div class="verdict" data-m="hebbian" style="--c:var(--bio)">
               <div class="who">Hebbian<small>local, label-free</small></div>
-              <div class="guess none">–</div>
+              <div class="guess-cell">
+                <div class="guess none">–</div>
+                <div class="conf"></div>
+              </div>
               <div>
                 <div class="bars10">
                   <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <div class="bar-axis">
+                  <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
                 </div>
                 <div class="hidden-strip">
                   <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
@@ -115,6 +127,14 @@
               </div>
             </div>
           </div>
+
+          <p class="note" style="max-width:60ch">
+            Each of the ten bars is how strongly that model believes the drawing is that digit — the
+            tallest one is its answer, and the percentage next to it is its confidence. The thin strip
+            below is the model's 400 hidden units, grouped into 40 blocks; brighter means more of that
+            group is firing. The Hebbian strip should look noticeably sparser: it was trained to keep only
+            about 8% of its units active at once, the way cortex does.
+          </p>
 
           <div class="demo-status" id="demo-status">Loading weights…</div>
         </div>
