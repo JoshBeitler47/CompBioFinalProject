@@ -383,12 +383,12 @@
 <section id="ladder">
   <div class="wide">
     <div class="section-head rise" style="width:var(--col); margin-inline:0;">
-      <div class="eyebrow">Result 1 · the ablation ladder</div>
-      <h2>Not "who wins." Which illegal move is doing the work.</h2>
+      <div class="eyebrow">Result 1 · the control and the gap</div>
+      <h2>Everybody knows backprop wins. That, by itself, is worth nothing.</h2>
       <p class="lede">
-        Everybody knows backprop wins. That result is worth nothing on its own. So instead we built a
-        <strong>ladder</strong>: start from a layer that cannot learn at all, and add back one piece
-        of biologically impossible machinery at a time. Then watch where the accuracy actually jumps.
+        The number that actually matters is <strong>how much</strong> it wins by — and to know that, you
+        first have to know what winning even looks like. So there are three bars here, and only one of
+        them is a competitor. The other two are there to make it mean something.
       </p>
     </div>
 
@@ -422,20 +422,24 @@
     </div>
 
     <div class="wrap rise" style="margin-top:2.5rem; margin-inline:0;">
+      <h3>The bottom bar is not a competitor. It's the yardstick.</h3>
       <p>
-        Read it from the bottom. A frozen random layer — one that <em>never learns anything</em> —
-        already gets <strong>85.66%</strong>, because 400 random projections of a digit are
-        already a decent description of it. That's the bar. Anything that can't beat it hasn't
-        learned a thing.
+        A frozen random layer — one that <em>never learns anything at all</em> — already scores
+        <strong>85.66%</strong>. That surprises people, and it is the single most useful number on this
+        page. Four hundred random projections of a digit already describe it well enough for a linear
+        classifier to do most of the work. So 85.66% is not a floor you can be proud of clearing. It is
+        the floor you have to clear <em>before you have learned anything</em>.
       </p>
       <p>
-        Our Hebbian layer clears it by <strong>3.4 points</strong>, consistently, across every seed.
-        That is a real result: a rule with no labels, no error signal, and no wire longer than a
-        synapse found genuine structure in raw pixels.
+        Our Hebbian layer clears it by <strong>3.4 points</strong>, consistently, on every seed. That is
+        the result: a rule with no labels, no error signal, and no wire longer than a single synapse
+        found real structure in raw pixels. Without the random control sitting underneath it, 89% would
+        be a number you could not interpret.
       </p>
       <p>
-        Then you add back the global, label-driven error signal — and accuracy jumps
-        <strong>~8.7 points</strong> to 97.75%.
+        And then backprop takes another <strong>8.7 points</strong> on top. Same architecture, same
+        readout, same data. The only thing it has that the Hebbian layer doesn't is <em>the right
+        answer</em>.
       </p>
 
       <div class="finding machine">
