@@ -249,6 +249,20 @@ nav {
 .hero .wide { position: relative; z-index: 1; }
 .hero h1 { max-width: 17ch; }
 .hero h1 .cut { color: var(--flag); }
+.hero-head {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+.hero-head h1 { flex: 1 1 380px; }
+.hero-brain {
+  flex: 1 1 260px;
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
 .hero-deck {
   max-width: 60ch;
   margin-top: 1.75rem;
