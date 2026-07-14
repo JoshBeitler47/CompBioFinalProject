@@ -257,8 +257,8 @@ nav {
 }
 .hero-head h1 { flex: 1 1 380px; }
 .hero-brain {
-  flex: 1 1 260px;
-  max-width: 320px;
+  flex: 1 1 320px;
+  max-width: 420px;
   width: 100%;
   height: auto;
   border-radius: 4px;
@@ -533,12 +533,12 @@ nav {
 
 /* SVG scope internals — visibility driven by data-mode on the <svg> */
 #scope-svg text { font-family: var(--mono); font-size: 9px; letter-spacing: 0.04em; }
-#scope-svg .n-body { fill: var(--panel-2); stroke: var(--rule-hi); stroke-width: 1; }
-#scope-svg .wire   { stroke: var(--rule-hi); fill: none; stroke-width: 1; }
+#scope-svg .n-body { fill: var(--panel-2); stroke: rgba(233, 240, 242, 0.4); stroke-width: 1; }
+#scope-svg .wire   { stroke: rgba(233, 240, 242, 0.34); fill: none; stroke-width: 1; }
 #scope-svg .lab    { fill: var(--ink-mute); }
 #scope-svg .layer-cap { fill: var(--ink-mute); font-size: 8px; letter-spacing: 0.12em; }
 
-#scope-svg .dim { opacity: 0.14; transition: opacity 0.4s ease; }
+#scope-svg .dim { opacity: 0.34; transition: opacity 0.4s ease; }
 #scope-svg .lit { opacity: 1;    transition: opacity 0.4s ease; }
 
 #scope-svg .target  .n-body { fill: var(--bio); stroke: var(--bio); }
