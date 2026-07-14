@@ -719,10 +719,50 @@
         prediction error. The bridge was in the 1982 paper the whole time.
       </p>
 
+      <h3 style="margin-top:2.5rem">Locality is not only a biological constraint</h3>
+
+      <p>
+        It is tempting to end by saying the brain is the most efficient neural network there is. Be
+        careful — on a <em>narrow</em> task that is simply false, and our own results are the proof. A
+        small network on a microcontroller classifies a handwritten digit in microjoules. A human
+        spends a second of a 20-watt brain doing the same thing, and is enormously less efficient per
+        digit. Silicon won that race a long time ago.
+      </p>
+
+      <p>
+        Where the brain is still untouchable is <strong>learning</strong>. It learns continuously, from
+        few examples, without a teacher, across every sense at once, without catastrophically
+        forgetting what it knew last week — on about <strong>20 watts</strong>, roughly a dim
+        lightbulb. That is the machine we are actually trying to explain, and it is not the one we
+        benchmarked.
+      </p>
+
+      <p>
+        And here is the part we did not expect. Locality is not <em>only</em> a rule biology imposes on
+        itself — it is an <strong>energy</strong> constraint, and it is the same constraint. Backprop
+        has to store every activation from the forward pass and then ship a globally computed error
+        back through the network. In real hardware, moving data is where the energy goes; the
+        arithmetic is nearly free by comparison. A local rule touches only the two neurons it sits
+        between: no stored forward pass, no long-range error traffic, nothing to ship anywhere. This is
+        exactly why neuromorphic chips want local learning rules — they are the only kind you can
+        actually run on the chip.
+      </p>
+
+      <p>
+        Nor is "we cannot simulate a brain" mainly a shortage of compute. We have the complete wiring
+        diagram of an adult fruit fly and a cubic millimetre of mouse cortex; a human has around 86
+        billion neurons and something on the order of a hundred trillion synapses, and we have mapped
+        essentially none of it. But even where we <em>do</em> have the wiring, we do not have the
+        <strong>learning rules</strong> — which is the whole reason this project exists. We had to
+        guess at a rule, and then report honestly that the piece of it we were most confident about did
+        nothing at all.
+      </p>
+
       <div class="finding">
-        Your brain runs on about <strong>20 watts</strong> — a dim lightbulb. It learns continuously,
-        from few examples, without a teacher, and it does not need a wire that reaches from your
-        motor cortex back into your retina. That is the machine we are actually trying to explain.
+        So our 8.7 points is not only the price of biological plausibility. It is the price of a
+        learning rule you could run on <span class="tk-bio">20 watts</span> — one that never has to
+        store the past or phone home. Whether that is a bargain or a disaster depends entirely on what
+        you are trying to build, and that is an open question, not a rhetorical one.
       </div>
 
       <h3 style="margin-top:2.5rem">What we'd fix</h3>
