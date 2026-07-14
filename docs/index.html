@@ -208,6 +208,38 @@
         </span>
       </div>
 
+      <h3 style="margin-top:2.5rem">"But the readout uses labels. Isn't that cheating?"</h3>
+      <p>
+        It's the first thing anyone asks. Yes — our biologically plausible model is fed labels, just not
+        in the layer we're making claims about. Train a single linear layer and the update to the weight
+        between hidden unit <em>j</em> and output unit <em>i</em> comes out as:
+      </p>
+
+      <div class="rule-box">
+        <span class="rl"><span class="tk-dim">Δw</span><span class="tk-dim">ᵢⱼ</span> ∝ − ( <span class="tk-mach">pᵢ</span> − <span class="tk-mach">yᵢ</span> ) · <span class="tk-bio">hⱼ</span></span>
+        <span class="cap">
+          The delta rule (Widrow &amp; Hoff, 1960). <span class="tk-bio">hⱼ</span> = the cell sending the
+          signal. <span class="tk-mach">pᵢ</span> = what the receiving cell fired.
+          <span class="tk-mach">yᵢ</span> = what it should have fired. All three are available
+          <em>at that synapse</em>.
+        </span>
+      </div>
+
+      <p>
+        Nothing is copied from elsewhere; there is no backward pass. The output neuron already knows what
+        it fired and what it should have — the error is computed <em>where the synapse lives</em>. This is
+        a supervised Hebbian rule, and it's the same shape as the three-factor plasticity rules real
+        neurons are thought to use, where a neuromodulator supplies the error term.
+      </p>
+      <p>
+        <strong>Backprop's sin was never using a label.</strong> It's propagating that error backwards
+        <em>through depth</em>: a hidden neuron can't know its own error, so backprop manufactures one by
+        shipping a copy of the output weights <span class="tk-flag">W₂ᵀ</span> backwards. That's the wire
+        that doesn't exist. One layer deep, there is no depth to propagate through — so the readout
+        commits a lesser crime, and <strong>all three models commit it identically.</strong> It cannot be
+        the source of any difference between them.
+      </p>
+
       <h3 style="margin-top:2.5rem">And a third model, which is the one people misread</h3>
       <p>
         There's a control on the bench called <strong>Random</strong>, and the name is misleading
