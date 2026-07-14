@@ -835,19 +835,14 @@ footer {
 .foot-inner {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
   font-family: var(--mono);
   font-size: 0.72rem;
   color: var(--ink-mute);
   letter-spacing: 0.04em;
 }
-.foot-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-.foot-credits { text-align: center; }
 
 /* scroll reveal */
 .rise { opacity: 0; transform: translateY(14px); }
